@@ -1,0 +1,14 @@
+Field,Label,Value
+created,Created,2019-04-12T09:08:25.898185
+description,Description,Main cities for INGC-Mozambique 
+format,File Format,SHP
+download_url,Download URL,http://geonode.ingc.gov.mz/qgis-server/download-zip/national__main_cities?access_token=dee49fc05d3411e9932e02967b3ca6c8
+id,Resource ID,ce72a63c-b05d-47a8-9b47-18e124c97628
+last_modified,Updated,2019-04-12T09:08:25.513839
+metadata_modified,Metadata Updated,2023-03-02T22:37:30.121915
+microdata,Microdata,False
+dataset_id,Dataset ID,50aedced-72bb-4de9-97e1-326f4fc78a94
+resource_type,Resource Type,api
+name,Resource Name,national__main_cities.zip
+mimetype,MIME Type,application/x-qgis
+size,Size,217.0B
