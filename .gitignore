@@ -1,0 +1,12 @@
+# --- System & Python Junk ---
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# --- Data Exclusion ---
+
+# Ignore:
+data/raw/
+data/processed/archive
+scripts/dev_backups
+
