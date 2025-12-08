@@ -5,12 +5,15 @@ __pycache__/
 
 # --- Data Exclusion ---
 
-# 1. Recursively ignore EVERYTHING inside data/raw (files & folders)
+# 1. Ignore everything inside data/raw recursively
 data/raw/**/*
 
-# 2. EXCEPTION: Allow Git to track .gitkeep files anywhere inside data/raw
+# 2. CRITICAL FIX: Do NOT ignore directories (this lets Git look inside)
+!data/raw/**/
+
+# 3. Exception: Track .gitkeep files
 !data/raw/**/.gitkeep
 
-# Ignore specific processed/backup folders
+# Ignore others
 data/processed/archive
 scripts/dev_backups
