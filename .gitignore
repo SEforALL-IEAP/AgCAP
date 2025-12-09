@@ -1,0 +1,20 @@
+# --- System & Python Junk ---
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# --- Data Exclusion ---
+
+# 1. Ignore everything inside data/raw recursively
+data/raw/**/*
+
+# 2. CRITICAL FIX: Do NOT ignore directories (this lets Git look inside)
+!data/raw/**/
+
+# 3. Exception: Track .gitkeep files
+!data/raw/**/.gitkeep
+
+# Ignore others
+data/processed/archive
+scripts/dev_backups
+scripts/aux_scripts/table_to_markdown.ipynb

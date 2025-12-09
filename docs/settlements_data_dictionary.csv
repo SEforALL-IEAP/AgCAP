@@ -1,0 +1,64 @@
+﻿Category,Column name,Description
+Administrative & Location,id,Settlement unique identifier
+Administrative & Location,Region,Administrative level 1 of belonging
+Administrative & Location,District,Administrative level 2 of belonging
+Administrative & Location,Commune,Administrative level 3 of belonging
+Administrative & Location,Fokontany,Administrative level 4 of belonging
+Population & Demographics,Population,Number of people iving within the settlement boundary
+Population & Demographics,Population density,Population density in people [pp/km²]
+Population & Demographics,Population within 20 km,Number of people living within a 20 km radius
+Electrification,Distance from MV power lines,Distance from the nearest Medium-Voltage power lines [km]
+Electrification,Distance from nearest mini-grid,Distance from the nearest mini-grid [km]
+Electrification,Night ligths intensity,Median annual VIIRS nighttime lights radiance observed over the last full calendar year [W/cm²·sr]
+Electrification,Electrification status (nightlights),Electrification status inferred from distance to MV lines and nighttime lights
+Electrification,Electrification status (IEP study),"Electrification status as per the latest national electrification plan (SEforALL IEP, 2024)"
+Electrification,Least-cost electrification mode (IEP results),"Recommended least-cost electrification modality as per the latest national electrification plan (SEforALL IEP, 2024)"
+"Economic, Livelihoods, and Risks",Relative Wealth Index,"Meta Relative Wealth Index standardized score for local relative wealth (0=national mean, negative=poorer, positive=wealthier)"
+"Economic, Livelihoods, and Risks",Percentage of food-insecure people,Percentage of people above Phase 3 food insecurity as per the IPC latest available monitoring analysis [%]
+"Economic, Livelihoods, and Risks",Livelihoods,Dominant livelihood categories for households in the area
+"Economic, Livelihoods, and Risks",Conflict fatalities nearby,Number of fatalities due to conflict events within 10 km are calculated for last year available
+"Economic, Livelihoods, and Risks",Cyclone hazard (1 in 100 years wind speed),Maximum 1-in-100-year cyclone wind speed affecting the settlement area [km/h]
+Physical Geography & Climate,Elevation,Mean ground elevation of the settlement above sea level [m]
+Physical Geography & Climate,Mean temperature,Mean annual near-surface air temperature for the settlement area [°C]
+Physical Geography & Climate,Mean diurnal temperature range,Average difference between daily maximum and minimum temperatures [°C]
+Physical Geography & Climate,Cooling Degree Days Cold Room at 4C,Annual cooling degree days relative to a 4 °C cold-room setpoint for the settlement’s climate [°C·days]
+Physical Geography & Climate,Hot days (>30C) in a year,Average number of days per year with daily maximum temperature above 30 °C
+Physical Geography & Climate,Relative humidity,Mean annual near-surface relative humidity for the settlement area [%]
+Physical Geography & Climate,Precipitation,Mean annual total precipitation over the settlement area [mm/year]
+Physical Geography & Climate,Aridity Index,Climatic aridity index (ratio of precipitation to potential evapotranspiration) for the settlement
+Physical Geography & Climate,Climate class,Köppen climate classification category
+Physical Geography & Climate,Solar PV Output (kWh/year per installeld kW),Expected annual electricity generation per installed kW of PV capacity at the settlement [kWh/year per kW]
+Water & Cropland,Cropland percentage of Influence area,Percentage of the defined influence area around the settlement classified as cropland [%]
+Water & Cropland,Permanent water area (ha) within 10 km,Total area of permanent surface water within 10 km of the settlement [ha]
+Water & Cropland,Distance from coastlines,Distance from the settlement to the nearest coastline [km]
+Market Accessibility,Travel time airports,Estimated travel time from the settlement to the nearest airport [hours]
+Market Accessibility,Travel time ports,Estimated travel time from the settlement to the nearest port [hours]
+Market Accessibility,Travel time cities,Estimated travel time from the settlement to the nearest main city [hours]
+Market Accessibility,Travel time capital,Estimated travel time from the settlement to the capital city [hours]
+Market Accessibility,Travel time railway stations,Estimated travel time from the settlement to the nearest railway station [hours]
+Market Accessibility,Export Market Accessibility,"Composite indicator of market accessibility to export markets. Weighted average of travel times to airports,ports, railway stations and capital city (0=lowest, 1=highest)"
+Market Accessibility,National Market Accessibility,"Composite indicator of market accessibility to export markets. Weighted average of travel times to capital city, nearest cities, airports,ports, railway stations, and nearby population (0=lowest, 1=highest)"
+Market Accessibility,Fresh Markets Accessibility,"Composite indicator of market accessibility to export markets. Weighted average of travel times to capital city, nearest cities, airports,ports, railway stations (0=lowest, 1=highest)"
+Agricultural Cooling Demand,Farming Activity,"Composite indicator of market accessibility to export markets. Weighted average of nearby population, travel times to capital city, nearest cities, airports,ports, railway stations (0=lowest, 1=highest)"
+Agricultural Cooling Demand,Ag Cooling Demand Export Market,"Composite indicator of cooling demand for fish products destined for export markets (0=lowest, 1=highest)"
+Agricultural Cooling Demand,Ag Cooling Demand National Market,"Composite indicator of cooling demand for fish products destined for national distribution (0=lowest, 1=highest)"
+Agricultural Cooling Demand,Ag Cooling Demand Fresh Markets,"Composite indicator of cooling demand for fish products destined for local fresh markets (0=lowest, 1=highest)"
+Agricultural Cooling Demand,Ag Cooling Demand ALL Markets,"Composite indicator of cooling demand for fish products across all destination markets (0=lowest, 1=highest)"
+Agriculture Production,Banana production,Banana production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Cassava production,Cassava production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Citrus production,Citrus production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Cowpea production,Cowpea production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Other Roots production,Other roots production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Other Tropical Fruit production,Other tropical fruit production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Other Vegetables production,Other vegetables production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Potato production,Potato production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Sweet Potato production,Sweet potato production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Temperate Fruit production,Temperate fruit production associated with the settlement influence area [tonnes/year]
+Agriculture Production,Tomato production,Tomato production associated with the settlement influence area [tonnes/year]
+Fishing Cooling Demand,Fishing Activity (marine + inland),"Composite indicator of  fishing activity (both marine and inland) based o  water resources available (e.g. distance from shorelines and availability of permanent inland water nearby (0=lowest, 1=highest)"
+Fishing Cooling Demand,Fishing type,Fishing modality (marine or inland)
+Fishing Cooling Demand,Fish Cooling Demand Export Market,"Composite indicator of cooling/ice making demand for fish products destined for export markets (0=lowest, 1=highest)"
+Fishing Cooling Demand,Fish Cooling Demand National Market,"Composite indicator of cooling/ice making demand for fish products destined for national distribution (0=lowest, 1=highest)"
+Fishing Cooling Demand,Fish Cooling Demand Fresh Markets,"Composite indicator of cooling/ice making demand for fish products destined for local fresh markets (0=lowest, 1=highest)"
+Fishing Cooling Demand,Fish Cooling Demand ALL Markets,"Composite indicator of cooling/ice making demand for fish products across all destination markets (0=lowest, 1=highest)"
+Geometry,geometry,Geometric representation of the settlement boundaries
