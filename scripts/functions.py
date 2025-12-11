@@ -117,6 +117,7 @@ def run_zonal_stats_clipped(polygons_gdf, raster_path, stats=['mean'], col_prefi
             working_gdf = polygons_gdf.copy()
             
         clip_bounds = working_gdf.total_bounds
+        left, bottom, right, top = clip_bounds
         print('Calculating raster window and reading only relevant data...')
         window = from_bounds(*clip_bounds, transform=src.transform)
         data = src.read(1, window=window)
@@ -345,7 +346,8 @@ def createVoronoi_3(admin, settlements, crs_projected, crs, boundary_point_spaci
             for coord in exterior_coords:
                 points_list.append({'id': idx, 'uid': polygon_uid, 'geometry': Point(coord)})
             if total_vertices % 100 == 0:
-                print(f'Processed {total_vertices} perimeter vertices so far...')
+                pass
+                #print(f'Processed {total_vertices} perimeter vertices so far...')
                 
     print(f'Total perimeter vertices extracted from settlements: {total_vertices}')
     points_df = gpd.GeoDataFrame(points_list, crs=crs_projected)
@@ -365,7 +367,8 @@ def createVoronoi_3(admin, settlements, crs_projected, crs, boundary_point_spaci
         if -1 not in line_indices:
             lines.append(shapely.geometry.LineString(vor.vertices[line_indices]))
         if i % 100 == 0 and i > 0:
-            print(f'Processed {i} Voronoi ridges out of {len(vor.ridge_vertices)}')
+            pass
+            #print(f'Processed {i} Voronoi ridges out of {len(vor.ridge_vertices)}')
             
     polys = shapely.ops.polygonize(lines)
     voronois = gpd.GeoDataFrame(geometry=gpd.GeoSeries(polys), crs=crs_projected)
@@ -622,7 +625,65 @@ def get_single_input_file_path(input_directory_path: Union[str, Path], allowed_e
         raise ValueError(f'Multiple files ({num_files}) matching the specified criteria found in: {input_dir}.\nPlease ensure **only one** file (e.g., one .shp or one .gpkg) is present for processing.Found files:{file_names}')
     else:
         return matching_file_list[0]
-    
+
+def get_multiple_input_file_path(input_directory_path: Union[str, Path], allowed_extensions: Optional[List[str]] = None) -> Path:
+    """
+    Checks the specified directory for files matching the allowed extensions.
+    - If exactly one file is found, returns it.
+    - If multiple files are found, prompts the user to select one.
+    - If none are found, raises FileNotFoundError.
+    """
+    input_dir = Path(input_directory_path)
+    if not input_dir.is_dir():
+        raise FileNotFoundError(f'Input directory not found or is not a directory: {input_dir}')
+        
+    if allowed_extensions:
+        normalized_extensions = [
+            ext if ext.startswith('.') else f'.{ext}'
+            for ext in [e.lower() for e in allowed_extensions]
+        ]
+        
+    matching_file_list = []
+    for p in input_dir.iterdir():
+        if p.is_file():
+            if allowed_extensions:
+                if p.suffix.lower() in normalized_extensions:
+                    matching_file_list.append(p)
+            else:
+                matching_file_list.append(p)
+                
+    num_files = len(matching_file_list)
+
+    # No files found
+    if num_files == 0:
+        ext_hint = f' matching extensions {allowed_extensions}' if allowed_extensions else ''
+        raise FileNotFoundError(
+            f'No files{ext_hint} found in the input folder: {input_dir}. '
+            'Please ensure the required file is placed there.'
+        )
+
+    # Exactly one file found → return it directly
+    if num_files == 1:
+        return matching_file_list[0]
+
+    # Multiple files found → ASK USER
+    print(f"\nMultiple files ({num_files}) found in: {input_dir}")
+    print("Please select the file to use:\n")
+
+    for i, f in enumerate(matching_file_list, start=1):
+        print(f"  {i}. {f.name}")
+
+    while True:
+        selection = input("\nEnter the number of the file you want to use: ")
+        try:
+            idx = int(selection)
+            if 1 <= idx <= num_files:
+                return matching_file_list[idx - 1]
+            else:
+                print(f"Please enter a number between 1 and {num_files}.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
 def process_categorical_raster(gdf, raster_input, prefix):
     """
     Calculates categorical statistics for a raster and appends them to the 
