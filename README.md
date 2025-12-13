@@ -1,9 +1,28 @@
 # ❄️AgCAP: Agricultural Cold Chain Access Planning Tool **Madagascar**
 
 
-## 🌟 Overview
+## 🌟 Why AgCAP?
 
-Overview
+Up to 40% of perishable harvested products are estimated to be lost to spoilage in Sub-Saharan Africa.
+
+**Key Benefits of Cold Chains:**
+- From an energy access perspective, productive uses of energy for agriculture and fisheries—including cooling—enhance the effectiveness, increase impact, and improve economic viability of rural electrification.
+- Cold chains support rural economies and value chain development, reducing post-harvest losses, improving livelihoods, and ensuring food security and climate resilience.
+
+**Core Challenges:**
+- Estimating agricultural cooling demand is difficult due to limited data.
+- Identifying suitable sites for cold rooms is complex, as it depends on multiple factors: agricultural productivity, market access, commercial viability, power availability, climate, and more.
+- Projects in the most needy communities are often less bankable.
+
+**Geospatial Opportunity:**  
+Utilize geospatial data to identify and characterize communities likely to demand agricultural cooling services—at a national scale.
+
+**AgCAP Solution:**  
+The Agricultural Cold Chain Access Planning (AgCAP) tool is a customizable, multi-criteria optimization-based planning tool. It identifies communities most likely to benefit from cold storage, enabling data-driven site selection and commercial viability assessments to inform pre-feasibility investment opportunities.
+
+This repository contains the core model powering the **AgCAP Platform**—a public web-based tool enabling settlement-level cold-chain planning within rural development and electrification initiatives for select target countries.
+
+The provided model can be utilized by modellers and planners to replicate and extend the analysis to additional countries not yet covered by SEforALL, or to customize it using different input data, assumptions, and indices.
 
 ## 🚀 Getting Started
 
@@ -21,7 +40,7 @@ You need the following installed:
 1.  **Clone the Repository:**
     ```bash
     git clone https://github.com/SEforALL-IEAP/AgCAP.git
-    cd [Project Name]
+    cd AgCAP
     ```
 
 2.  **Create and Activate the Environment:**
@@ -31,99 +50,6 @@ You need the following installed:
     conda activate agcapenv
     ```
 
-## 📚 Project Structure
-
-The project is organized as follows: (DRAFT)
-```
-AgCAP_project_folder
-├───assets
-│   └───images
-├───data
-│   ├───processed
-│   │   ├───archive
-│   │   ├───input_analyzed
-│   │   ├───input_extracted
-│   │   └───input_voronoi
-│   ├───raw
-│   │   ├───admin
-│   │   │   ├───adm0
-│   │   │   │   └───input_file
-│   │   │   ├───adm1
-│   │   │   │   └───input_file
-│   │   │   ├───adm2
-│   │   │   │   └───input_file
-│   │   │   ├───adm3
-│   │   │   │   └───input_file
-│   │   │   └───adm4
-│   │   │       └───input_file
-│   │   ├───aridity_index
-│   │   │   └───input_file
-│   │   ├───clim_class
-│   │   │   └───input_file
-│   │   ├───conflict
-│   │   │   └───input_file
-│   │   ├───cropland
-│   │   │   └───input_file
-│   │   ├───crop_prod_spam
-│   │   │   └───input_file
-│   │   ├───cyclone_hazard
-│   │   │   └───input_file
-│   │   ├───diurn_range
-│   │   │   └───input_file
-│   │   ├───elevation
-│   │   │   └───input_file
-│   │   ├───food_security
-│   │   │   └───input_file
-│   │   ├───hot_days_30
-│   │   │   └───input_file
-│   │   ├───iep_elec_results
-│   │   │   └───input_file
-│   │   ├───livelihood_zones
-│   │   │   └───input_file
-│   │   ├───mini_grids
-│   │   │   └───input_file
-│   │   ├───mv_lines
-│   │   │   └───input_file
-│   │   ├───nightlight
-│   │   │   └───input_file
-│   │   ├───population
-│   │   │   └───input_file
-│   │   ├───precipitation
-│   │   │   └───input_file
-│   │   ├───pvout
-│   │   │   └───input_file
-│   │   ├───relative_humidity
-│   │   │   └───input_file
-│   │   ├───rwi
-│   │   │   └───input_file
-│   │   ├───settlements
-│   │   │   └───input_file
-│   │   ├───shoreline
-│   │   │   └───input_file
-│   │   ├───temperature
-│   │   │   └───input_file
-│   │   ├───t_time
-│   │   │   ├───input_air
-│   │   │   ├───input_capital
-│   │   │   ├───input_cities
-│   │   │   ├───input_ports
-│   │   │   └───input_railways
-│   │   └───w_occ
-│   │       └───input_file
-│   └───temp
-├───docs
-├───notebooks
-│   └───.ipynb_checkpoints
-├───outputs
-│   ├───data
-│   └───maps
-├───scripts
-│   ├───aux_scripts
-│   ├───dev_backups
-│   └───__pycache__
-└───visualization_platform
-
-```
 ## 🗺️🔍 Usage for exploratory analysis using pre-compliled results (visualization -> multi-criteria site selection)
 
 ### Running the <span style="color:#007bff; font-weight:bold;">AgCAP Explorer</span> interactive platform
@@ -182,6 +108,15 @@ The settlements data dictionary can be found here:
 | Travel Times                   | GeoTIFF (.tif)     | World                                   | [Travel times to Airports, Ports, Capital, Cities, Railways](https://malariaatlas.org/project-resources/accessibility-to-healthcare/)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Generated by the auxiliary tool provided, starting from CSV files (one for each POI, having only 2 columns: X_COORD, Y_COORD). Based on https://malariaatlas.org/project-resources/accessibility-to-healthcare/                                                               |
 | Water Occurence                | GeoTIFF (.tif)     | World                                   | [JRC Global Surface Water (GSW)](https://developers.google.com/earth-engine/datasets/catalog/JRC_GSW1_4_GlobalSurfaceWater)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Google Earth Engine to download only the required variable and for the required geography [GEE CODE TO BE PROVIDED]                                                                                                                                                           |
 
+- Auxiliary scripts: auxiliary tools to manipulate input datasets are provided:
+    - `Rasterize RWI.ipynb`: Since Meta’s Relative Wealth Index data is in point vector format, this notebook is used to convert Relative Wealth Index data from point vector to raster format.
+    - `Clip_rasters_by_shape.py`: A Python utility for batch-clipping raster datasets. The script processes files within the active directory, cropping them to a user-defined vector mask via an interactive prompt. This pre-processing step significantly reduces the storage footprint and computational overhead of large-scale geospatial data.
+    - `Clip_rasters_by_shape.py`: A notebook for pre-processing of the SPAM raster data. This tool downscales the SMPA data from a 10 x 10 km resolution to a 100 x 100m resolution while keeping the data integrity and spatial distribution(no interpolation), an essential step to extrapolate settlement's crop production values correctly.
+    - `t_time` directory: it contains a tool that is used to calculate travel times from each settlement to different Points of Interests (POIs), such as airports, ports, etc.
+        - `Prepare_POIs_for_R_tool.py`: python code to pre-process POIs
+        - `R_tools.yml`: configuration file to install the virtual environment required to run the Accessibility mapping tool, which is written in R.
+        - `Accessibility_mapping_tool.ipynb`: notebook written in R that computes the accessibility maps, i.e. the travel time raster maps. The output GeoTIFF files should be saved in the `data/raw/t_time` directory
+
 - Save the raw input files into the sub-directories `data/raw/[data type]/input_file`
 
 ### 2) Running the <span style="color:#28a745; font-weight:bold;">Data Extraction Notebook</span> <br>
@@ -204,8 +139,37 @@ The settlements data dictionary can be found here:
 
 
 ## 🗺️ AgCAP Expore Interactive Platform
-- ..
-- ...
+## AgCAP Explorer App Usage
+
+1. **Launch the AgCAP Explorer App** via two options:  
+   a. Public AgCAP platform for available countries—ideal for general users without modeling needs.  
+   b. Local Jupyter notebooks or app launcher—for full control over data, assumptions, and privacy.
+
+2. **Visualize settlement data** with color codes by attributes like demand indices to spot patterns and differences intuitively.
+
+3. **Filter the map** using multiple attributes. Apply filters to display only sites that meet your specified conditions. Combined with custom color scales, this helps identify the most suitable sites for specific applications. Common filters include:  
+   a. **Production activities in the village:** Select sites with high farming activity, fishing activity, or a combination of both.  
+   b. **Potential cooling demand indices:** Based on production volumes and market accessibility.  
+   c. **Crop production:** Target sites with high output of specific perishable crops.  
+   d. **Demographics:** Exclude very small villages or those with low population density; also exclude large cities.  
+   e. **Geography:** Focus on specific regions, districts, communes, or other administrative areas.  
+   f. **Market access:** Prioritize sites with strong sales potential due to nearby populations, travel times to airports, ports, cities, and railway stations. NGOs may reverse this to target the most remote sites for maximum intervention impact.  
+   g. **Socio-economic data:** Target wealthier villages to enhance commercial viability of cold-chain facilities, or the poorest, most food-insecure ones.  
+   h. **Electrification status:** Select electrified sites for on-grid cold-chain solutions, or unelectrified sites for off-grid options. Filter for sites with existing mini-grids to integrate cold rooms as anchor loads, creating mutual benefits. Alternatively, choose sites planned for future mini-grid electrification, where developers can incorporate cold storage to boost utilization rates and financial viability.  
+   i. **Risks:** Filter settlements by recorded violence in the last 2 years or cyclone hazard levels.  
+   j. **Physical geography and climate:** Filter by climate zone, elevation, temperature, humidity, precipitation, aridity, and similar factors to target specific value chains or identify sites suitable for passive cooling.  
+   k. **Solar resources:** Select sites with the highest solar PV productivity for solar-powered cold-chain facilities.
+
+4. **Optionally import contextual geospatial datasets**—like census data, value chain production, roads, facilities, site assessments, or potential sites—to aid agricultural cold chain planning decisions.
+
+5. **Rank the settlements** by the composite indicator that best defines the suitability under the chosen case study, typically one of the cooling demand indices.
+
+6. **Use the interactive table** to see the attributes of the filtered settlements, and use the dedicated columns to assign a score for shortlisting and annotations. These files could then also be re-imported into the platform as additional layers (see point 4).
+
+7. **Export the shortlisted sites** or the full dataset in CSV format. The table provides valuable information for pre-feasibility analyses, preparation of site assessments, and general knowledge in cold-chain planning and rural electrification planning.
+
+8. **Save the session** and load previous sessions. The session files can be shared with others or used as templates.
+
 
 ## 🤝 Contact
 [Davide Mazzoni](https://github.com/orgs/SEforALL-IEAP/people/davidemazzoni2) - davidem@unops.org
