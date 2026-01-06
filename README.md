@@ -207,7 +207,7 @@ The settlements data dictionary can be found here:
 ## 🤝 Contact
 [Davide Mazzoni](https://github.com/orgs/SEforALL-IEAP/people/davidemazzoni2) - davidem@unops.org
 
-Robbert Raymond Hoeboer - robberth@unops.org
+Robbert Hoeboer - robberth@unops.org
 
 [Alexandros Korkovelos](https://github.com/akorkovelos) - alexandrosk@unops.org 
 
