@@ -129,7 +129,7 @@ AgCAP_project_folder
 ## 🗺️🔍 Usage for exploratory analysis using pre-compliled results (visualization -> multi-criteria site selection)
 
 ### Running the <span style="color:#007bff; font-weight:bold;">AgCAP Explorer</span> interactive platform
-![Platform](assets/images/platform.png)
+![Platform](assets/images/platformMoz.png)
 
 - If you want to use the pre-compiled results:
     1. Navigate to the `visualization_platform` directory
