@@ -1,4 +1,6 @@
-# ❄️AgCAP: Agricultural Cold Chain Access Planning Tool **Madagascar**
+# ❄️AgCAP: Agricultural Cold Chain Analysis and Prioritization Tool 
+
+**Use case of Mozambique**
 
 
 ## 🌟 Overview
@@ -13,8 +15,8 @@ These instructions will get you a copy of the project up and running on your loc
 
 You need the following installed:
 
-* Python (3.13 or higher). It is recommended installing it via the Miniforge distribution: https://github.com/conda-forge/miniforge
-* Conda oand Mamba (for environment management). They come already installed in the Miniforge distribution
+* Python (3.13 or higher). It is recommended to install it via the Miniforge distribution: https://github.com/conda-forge/miniforge
+* Conda and Mamba (for environment management). They come already installed in the Miniforge distribution
 
 ### Installation
 
