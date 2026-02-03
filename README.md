@@ -1,4 +1,6 @@
-# ❄️AgCAP: Agricultural Cold Chain Access Planning Tool **Madagascar**
+# ❄️AgCAP: Agricultural Cold Chain Analysis & Prioritization Tool 
+
+**Use case of Madagascar**
 
 
 ## 🌟 Why AgCAP?
