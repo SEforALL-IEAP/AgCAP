@@ -133,7 +133,7 @@ def run_zonal_stats_clipped(polygons_gdf, raster_path, stats=['mean'], col_prefi
         default_value = fill_na if fill_na is not None else np.nan
         values = [res.get(stat, default_value) for res in results]
         output_gdf[new_col_name] = values
-        
+        f
         if fill_na is not None:
             output_gdf[new_col_name] = output_gdf[new_col_name].fillna(fill_na)
         output_gdf[new_col_name] = output_gdf[new_col_name].astype(float).round(1)
