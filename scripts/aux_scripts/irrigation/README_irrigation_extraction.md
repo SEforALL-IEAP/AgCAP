@@ -28,7 +28,7 @@ data. For each month and each pixel, it:
 
 1. Computes the ratio of **Actual Evapotranspiration (AET)** to
    **Potential Evapotranspiration (PET)** — the *water stress ratio*.
-2. Classifies each pixel into one of four FAO-aligned categories:
+2. Classifies each pixel into one of four categories:
 
    | Stress ratio | Temperature | Category |
    |---|---|---|
