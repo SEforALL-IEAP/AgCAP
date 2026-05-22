@@ -133,8 +133,6 @@ Then run the script from anywhere:
 python C:\path\to\irrigation_extraction_MOZ.py
 ```
 
-> **Note:** The file and folder browser dialogs open at the correct size on
-> Windows automatically.
 
 ### macOS
 
@@ -174,15 +172,6 @@ Then run:
 ```bash
 python /path/to/irrigation_extraction_MOZ.py
 ```
-
-> **HiDPI displays:** Tkinter does not read the system DPI automatically on
-> Linux. If the file browser appears very small, prefix the command with a
-> scaling variable. To find your DPI, run `xrdb -query | grep dpi`. Divide the
-> result by 96 to get the scale factor (e.g. 192 dpi → factor 2):
->
-> ```bash
-> GDK_SCALE=2 python /path/to/irrigation_extraction_MOZ.py
-> ```
 
 ---
 
@@ -258,16 +247,6 @@ exactly what appears in the top-left dropdown at
 **`No module named 'ee'` or `No module named 'geemap'`**  
 → The required packages are not installed in the active environment. Run:
 `pip install earthengine-api geemap`
-
-**`No module named 'tkinter'` (Linux)**  
-→ Install it via your package manager:
-- Debian / Ubuntu: `sudo apt install python3-tk`
-- Fedora / RHEL: `sudo dnf install python3-tkinter`
-- Arch: `sudo pacman -S tk`
-
-**File browser dialog appears very small (Linux HiDPI)**  
-→ Prefix the command with `GDK_SCALE=2` (or the appropriate factor for your
-display). See the Linux launch instructions above for details.
 
 **Extraction errors on some chunks**  
 → The script prints a warning and continues processing. Try reducing the chunk
