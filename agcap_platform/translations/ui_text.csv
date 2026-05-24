@@ -1,0 +1,165 @@
+﻿key,en,fr,pt
+landing.title,AgCAP Tool,Outil AgCAP,Ferramenta AgCAP
+landing.subtitle,Agricultural Cold Chain Analysis & Prioritization Tool,Outil d'Analyse et de Priorisation de la Chaîne du Froid Agricole,Ferramenta de Análise e Priorização da Cadeia de Frio Agrícola
+landing.country_prompt,Select a country to launch the platform,Sélectionnez un pays pour lancer la plateforme,Selecione um país para iniciar a plataforma
+landing.country.madagascar,Madagascar,Madagascar,Madagáscar
+landing.country.mozambique,Mozambique,Mozambique,Moçambique
+landing.country_desc.madagascar,Settlements analysis and cooling demand assessment.,Analyse des établissements et évaluation de la demande de refroidissement.,Análise de assentamentos e avaliação da demanda de resfriamento.
+landing.country_desc.mozambique,Settlements analysis and cooling demand assessment.,Analyse des établissements et évaluation de la demande de refroidissement.,Análise de assentamentos e avaliação da demanda de resfriamento.
+landing.button.launch,Launch,Lancer,Iniciar
+login.title,Login,Connexion,Login
+login.username_label,Username,Nom d'utilisateur,Nome de usuário
+login.password_label,Password,Mot de passe,Senha
+login.password_placeholder,Enter access code,Entrez le code d'accès,Insira o código de acesso
+login.button.signin,Sign In,Se connecter,Entrar
+login.button.back,Back to country selection,Retour à la sélection de pays,Voltar à seleção de país
+login.error.invalid,Invalid credentials. Please try again.,Identifiants invalides. Veuillez réessayer.,"Credenciais inválidas. Por favor, tente novamente."
+sidebar.layers,Layers,Couches,Camadas
+sidebar.filters,Filters,Filtres,Filtros
+sidebar.analysis,Analysis,Analyse,Análise
+sidebar.documentation,Documentation,Documentation,Documentação
+sidebar.save_session,Save Session,Sauvegarder la Session,Salvar Sessão
+sidebar.load_session,Load Session,Charger une Session,Carregar Sessão
+sidebar.language,Language,Langue,Idioma
+tabs.layers,Layers,Couches,Camadas
+tabs.filters_primary,Filters (Primary),Filtres (Principal),Filtros (Primários)
+tabs.analysis,Analysis,Analyse,Análise
+basemap.title,Basemap,Fond de Carte,Mapa Base
+basemap.token_placeholder,Paste Mapbox Token (Optional),Coller le jeton Mapbox (Optionnel),Colar Token Mapbox (Opcional)
+layers.add_layer,+ Add Layer (CSV/GeoJSON/ZipShp/FGB/GPKG),+ Ajouter une Couche (CSV/GeoJSON/ZipShp/FGB/GPKG),+ Adicionar Camada (CSV/GeoJSON/ZipShp/FGB/GPKG)
+filters.filter_by,Filter By,Filtrer par,Filtrar Por
+analysis.analyze_label,Analyze:,Analyser:,Analisar:
+analysis.subset_selected,Selected,Sélectionné,Selecionado
+analysis.subset_filtered,Filtered,Filtré,Filtrado
+analysis.subset_all,All Data,Toutes les Données,Todos os Dados
+analysis.section.population,Population & Demographics,Population et Démographie,População e Demografia
+analysis.section.electrification,Electrification,Électrification,Eletrificação
+analysis.section.economic,"Economic, Livelihoods, and Risks","Économie, Moyens de Subsistance et Risques","Economia, Meios de Vida e Riscos"
+analysis.section.geography,Physical Geography & Climate,Géographie Physique et Climat,Geografia Física e Clima
+analysis.section.market,Market Accessibility,Accessibilité aux Marchés,Acessibilidade ao Mercado
+analysis.section.ag_demand,Agricultural Cooling Demand,Demande en Refroidissement Agricole,Demanda de Resfriamento Agrícola
+analysis.section.ag_production,Agriculture Production,Production Agricole,Produção Agrícola
+analysis.section.fish_demand,Fishing Cooling Demand,Demande en Refroidissement pour la Pêche,Demanda de Resfriamento Pesqueiro
+analysis.placeholder,Charts for {section} will appear here.,Les graphiques pour {section} apparaîtront ici.,Gráficos para {section} aparecerão aqui.
+table.data_button,Data,Données,Dados
+table.layer_label,LAYER:,COUCHE:,CAMADA:
+table.select_all,Select All,Tout Sélectionner,Selecionar Tudo
+table.deselect,Deselect,Désélectionner,Desmarcar
+table.no_points,No points selected,Aucun point sélectionné,Nenhum ponto selecionado
+table.select_instruction,Select data on map to view.,Sélectionnez des données sur la carte pour les visualiser.,Selecione dados no mapa para visualizar.
+table.filtered,Filtered,Filtré,Filtrado
+table.selected,Selected,Sélectionné,Selecionado
+geocoder.placeholder,Search place...,Rechercher un lieu...,Pesquisar local...
+legend.title,LEGEND,LÉGENDE,LEGENDA
+layer_settings.color,Color,Couleur,Cor
+layer_settings.scale,Scale,Échelle,Escala
+layer_settings.size,Size,Taille,Tamanho
+layer_settings.opacity,Opacity,Opacité,Opacidade
+layer_settings.single_color,Single Color,Couleur Unique,Cor Única
+spider_charts.total_production,Total perishable agriculture production (t/y) {value},Production agricole périssable totale (t/an) {value},Produção agrícola perecível total (t/a) {value}
+spider_charts.ag_demand,Ag Demand,Demande Agri.,Demanda Agrícola
+spider_charts.fish_demand,Fish Demand,Demande Pêche,Demanda de Peixe
+spider_charts.production,Production,Production,Produção
+branding.subtitle,Sustainable Energy for All,Sustainable Energy for All,Energia Sustentável para Todos
+basemap.openstreetmap,OpenStreetMap,OpenStreetMap,OpenStreetMap
+basemap.carto_positron,Carto Positron,Carto Positron,Carto Positron
+basemap.carto_dark,Carto Dark Matter,Carto Dark Matter,Carto Dark Matter
+basemap.stamen_terrain,Stamen Terrain,Stamen Terrain,Stamen Terrain
+basemap.satellite,Satellite (Mapbox Token Req.),Satellite (Jeton Mapbox Req.),Satélite (Requer Token Mapbox)
+basemap.satellite_streets,Satellite Streets (Mapbox Token Req.),Satellite Streets (Jeton Mapbox Req.),Ruas de Satélite (Requer Token Mapbox)
+basemap.light,Light (Mapbox Token Req.),Light (Jeton Mapbox Req.),Claro (Requer Token Mapbox)
+basemap.dark,Dark (Mapbox Token Req.),Dark (Jeton Mapbox Req.),Escuro (Requer Token Mapbox)
+table.close,Close,Fermer,Fechar
+table.total,Total,Total,Total
+table.no_layer,No Layer Selected,Aucune Couche Sélectionnée,Nenhuma Camada Selecionada
+table.layer_not_found,Layer not found,Couche introuvable,Camada não encontrada
+table.no_data,No data selected,Aucune donnée sélectionnée,Nenhum dado selecionado
+table.active_layer,Active Layer: {name},Couche Active: {name},Camada Ativa: {name}
+table.select_instruction_detail,Select points on map to view table. Shift+Click to multi-select.,Sélectionnez des points sur la carte pour voir le tableau. Shift+Clic pour sélection multiple.,Selecione pontos no mapa para ver a tabela. Shift+Clique para seleção múltipla.
+analysis.placeholder.population,Charts for Population & Demographics will appear here.,Les graphiques pour Population et Démographie apparaîtront ici.,Gráficos para População e Demografia aparecerão aqui.
+analysis.placeholder.electrification,Charts for Electrification will appear here.,Les graphiques pour Électrification apparaîtront ici.,Gráficos para Eletrificação aparecerão aqui.
+analysis.placeholder.economic,Charts for Economic/Risk factors will appear here.,Les graphiques pour Facteurs Économiques/Risques apparaîtront ici.,Gráficos para Fatores Econômicos/Risco aparecerão aqui.
+analysis.placeholder.geography,Charts for Geo/Climate will appear here.,Les graphiques pour Géo/Climat apparaîtront ici.,Gráficos para Geo/Clima aparecerão aqui.
+analysis.placeholder.market,Charts for Market Access will appear here.,Les graphiques pour Accessibilité aux Marchés apparaîtront ici.,Gráficos para Acesso ao Mercado aparecerão aqui.
+error.csv_read,Error reading CSV content.,Erreur de lecture du contenu CSV.,Erro ao ler conteúdo CSV.
+error.wkt_process,Error processing WKT: {error},Erreur de traitement WKT: {error},Erro ao processar WKT: {error}
+error.no_latlon,Error: CSV must contain lat/lon columns or a WKT geometry column.,Erreur: Le CSV doit contenir des colonnes lat/lon ou une colonne de géométrie WKT.,Erro: O CSV deve conter colunas lat/lon ou uma coluna de geometria WKT.
+error.no_geometry,Error: File has no geometry.,Erreur: Le fichier n'a pas de géométrie.,Erro: O arquivo não possui geometria.
+error.geo_read,Error reading geo file: {error},Erreur de lecture du fichier géo: {error},Erro ao ler arquivo geo: {error}
+error.generic,Error: {error},Erreur: {error},Erro: {error}
+layer.default_name,Settlements,Établissements,Assentamentos
+legend.no_data,No Data,Pas de données,Sem dados
+analysis.total_settlements,Number of settlements (clusters with >100 buildings): {value},Nombre d'établissements (avec plus de 100 bâtiments): {value},Número de assentamentos (com mais de 100 edifícios): {value}
+analysis.total_population,Total population in settlements: {value},Population totale dans les établissements: {value},População total nos assentamentos: {value}
+table.notes,Notes,Notes,Notas
+table.score,Score,Score,Pontuação
+analysis.section.bubble_chart,Custom Bubble Chart,Graphique à Bulles Personnalisé,Gráfico de Bolhas Personalizado
+analysis.bubble.x_axis,X Axis,Axe X,Eixo X
+analysis.bubble.y_axis,Y Axis,Axe Y,Eixo Y
+analysis.bubble.size,Size,Taille,Tamanho
+analysis.bubble.color,Color,Couleur,Cor
+analysis.bubble.optional,Optional...,Optionnel...,Opcional...
+analysis.bubble.select_columns,Select X and Y columns to display chart,Sélectionnez les colonnes X et Y pour afficher le graphique,Selecione as colunas X e Y para exibir o gráfico
+analysis.bubble.clear_highlight,Clear highlight,Effacer la surbrillance,Limpar destaque
+analysis.economic.avg_wealth,Avg Wealth Index,Indice de richesse moy.,Índice de riqueza méd.
+analysis.economic.food_insecure,Avg Food Insecure,Insécurité alim. moy.,Inseg. alimentar méd.
+analysis.economic.conflict_fatalities,Total Conflict Deaths,Décès conflits total,Mortes conflito total
+analysis.economic.cyclone_risk,Avg Cyclone Wind,Vent cyclone moy.,Vento ciclone méd.
+analysis.economic.livelihoods_title,Livelihoods Distribution,Répartition des moyens de subsistance,Distribuição de modos de vida
+analysis.economic.wealth_food_title,Wealth vs Food Insecurity (bubble = population),Richesse vs Insécurité Alimentaire (bulle = population),Riqueza vs Inseg. Alimentar (bolha = população)
+analysis.economic.wealth_pop_title,Wealth vs Pop. Density (bubble = population),Richesse vs Densité de Pop. (bulle = population),Riqueza vs Dens. Populacional (bolha = população)
+analysis.geography.avg_elevation,Avg Elevation,Altitude moy.,Altitude méd.
+analysis.geography.avg_temp,Avg Temperature,Température moy.,Temperatura méd.
+analysis.geography.avg_precip,Avg Precipitation,Précipitation moy.,Précipitation méd.
+analysis.geography.avg_solar,Avg Solar PV,PV solaire moy.,PV solar méd.
+analysis.geography.climate_title,Climate Class Distribution,Distribution des classes climatiques,Distribuição de classes climáticas
+analysis.geography.cooling_solar_title,Cooling Demand vs Solar PV (bubble = population),Demande froid vs PV solaire (bulle = population),Demanda de frio vs PV solar (bolha = população)
+analysis.market.avg_cities,Avg Time to Cities,Temps villes moy.,Tempo p/ cidades méd.
+analysis.market.avg_airports,Avg Time to Airports,Temps aéroports moy.,Tempo p/ aeroportos méd.
+analysis.market.avg_ports,Avg Time to Ports,Temps ports moy.,Tempo p/ portos méd.
+analysis.market.indices_title,Market Accessibility Indices (avg),Indices d'Accessibilité aux Marchés (moy.),Índices de Acessibilidade ao Mercado (méd.)
+analysis.market.scatter_title,Export vs National Accessibility (bubble = farming),Accessibilité Export vs Nationale (bulle = agriculture),Acessibilidade Export vs Nacional (bolha = agric.)
+table.reset_filters,Reset Filters,Réinitialiser Filtres,Redefinir Filtros
+table.export,Export,Exporter,Exportar
+sidebar.back,Back to Countries,Retour aux Pays,Voltar aos Países
+info.title,About AgCAP Platform,À Propos de la Plateforme AgCAP,Sobre a Plataforma AgCAP
+info.description,"The Agricultural Cold Chain Analysis & Prioritization (AgCAP) tool helps identify settlements where cold chain investments can have the greatest impact on food security and economic development.","L'outil d'Analyse et de Priorisation de la Chaîne du Froid Agricole (AgCAP) aide à identifier les établissements où les investissements dans la chaîne du froid peuvent avoir le plus grand impact sur la sécurité alimentaire et le développement économique.","A ferramenta de Análise e Priorização da Cadeia de Frio Agrícola (AgCAP) ajuda a identificar assentamentos onde investimentos em cadeia de frio podem ter o maior impacto na segurança alimentar e no desenvolvimento econômico."
+info.model_source,AgCAP Model Source Code,Code Source du Modèle AgCAP,Código Fonte do Modelo AgCAP
+info.close,Close,Fermer,Fechar
+toolbar.lasso_select,Lasso Select [S + Click],Sélection au Lasso [S + Clic],Seleção Laço [S + Clique]
+toolbar.box_select,Box Select [R + Click],Sélection Rectangle [R + Clic],Seleção Retângulo [R + Clique]
+toolbar.pan,Pan [P + Click],Déplacer [P + Clic],Panorâmica [P + Clique]
+toolbar.zoom_in,Zoom In,Zoom Avant,Ampliar
+toolbar.zoom_out,Zoom Out,Zoom Arrière,Reduzir
+toolbar.screenshot,Screenshot,Capture d'Écran,Captura de Tela
+toolbar.reset_view,Reset View,Réinitialiser la Vue,Redefinir Vista
+toolbar.reset_platform,Reset Platform,Réinitialiser la Plateforme,Redefinir Plataforma
+composite.title,Composite Index Builder,Constructeur d'Indice Composite,Construtor de Índice Composto
+composite.saved_indices,Saved Indices,Indices Sauvegardés,Índices Salvos
+composite.create_new,Create New Index,Créer un Nouvel Indice,Criar Novo Índice
+composite.column_name,New Column Name,Nom de la Nouvelle Colonne,Nome da Nova Coluna
+composite.target_layer,Target Layer,Couche Cible,Camada Alvo
+composite.attributes,Attributes to Combine,Attributs à Combiner,Atributos a Combinar
+composite.method,Standardization Method,Méthode de Standardisation,Método de Padronização
+composite.minmax, Min-Max (0-1 Range), Min-Max (Plage 0-1), Min-Max (Intervalo 0-1)
+composite.zscore, Z-Score (Standardized), Z-Score (Standardisé), Z-Score (Padronizado)
+composite.reset,Reset,Réinitialiser,Redefinir
+composite.calculate,Calculate Index,Calculer l'Indice,Calcular Índice
+composite.sum_label,Sum: ,Somme: ,Soma:
+composite.help_manager,View and manage your created composite indices. Hover over names to see their formula.,"Consultez et gérez vos indices composites créés. Survolez les noms pour voir leur formule.","Veja e gerencie seus índices compostos criados. Passe o mouse sobre os nomes para ver a fórmula."
+composite.help_create,Combine multiple attributes into a single suitability score using weighted normalization.,"Combinez plusieurs attributs en un seul score d'adéquation à l'aide d'une normalisation pondérée.","Combine múltiplos atributos em uma única pontuação de adequação usando normalização ponderada."
+composite.help_name,"Give your composite index a descriptive name (e.g., 'Market Access Score')","Donnez à votre indice composite un nom descriptif (ex. : 'Score d'Accès au Marché')","Dê ao seu índice composto um nome descritivo (ex.: 'Pontuação de Acesso ao Mercado')"
+composite.help_layer,Select which data layer to add the new column to,Sélectionnez la couche de données à laquelle ajouter la nouvelle colonne,Selecione a camada de dados à qual adicionar a nova coluna
+composite.help_columns,"Select 2 or more numeric columns. Each will be normalized and weighted.","Sélectionnez 2 colonnes numériques ou plus. Chacune sera normalisée et pondérée.","Selecione 2 ou mais colunas numéricas. Cada uma será normalizada e ponderada."
+composite.help_method,"Min-Max: Scales to 0-1 range. Z-Score: Standardizes by mean/std deviation (better for outliers).","Min-Max : Mise à l'échelle 0-1. Z-Score : Standardisation par moyenne/écart-type (meilleur pour les valeurs aberrantes).","Min-Max: Escala para 0-1. Z-Score: Padroniza pela média/desvio padrão (melhor para outliers)."
+composite.negative_effect,Negative effect: higher value = lower score,Effet négatif : valeur plus haute = score plus bas,Efeito negativo: valor maior = pontuação menor
+composite.placeholder_name,e.g. Suitability Score,ex. Score d'Adéquation,ex. Pontuação de Adequação
+composite.placeholder_attrs,Select 2+ attributes...,Sélectionnez 2+ attributs...,Selecione 2+ atributos...
+composite.error_min2,Select at least 2 attributes to create a composite index.,Sélectionnez au moins 2 attributs pour créer un indice composite.,Selecione pelo menos 2 atributos para criar um índice composto.
+analysis.population_label,Population,Population,População
+analysis.electrification.electrified,Electrified,Électrifié,Eletrificado
+analysis.electrification.non_electrified,Non-Electrified,Non-Électrifié,Não Eletrificado
+filters.p95_active,Showing 95th percentile range — click to show full range,Affichage du 95e percentile — cliquez pour afficher la plage complète,Mostrando intervalo do percentil 95 — clique para mostrar o intervalo completo
+filters.p95_inactive,Clip histogram to 95th percentile for skewed data,Limiter l'histogramme au 95e percentile pour les données asymétriques,Recortar histograma no percentil 95 para dados assimétricos
+filters.reset_active,Reset filter to full range,Réinitialiser le filtre à la plage complète,Redefinir filtro para o intervalo completo
+filters.reset_inactive,Filter is at full range,Le filtre est à la plage complète,Filtro está no intervalo completo

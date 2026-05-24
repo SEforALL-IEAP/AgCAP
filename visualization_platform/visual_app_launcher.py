@@ -11,8 +11,7 @@ import logging
 import tkinter as tk
 from tkinter import filedialog
 
-current_dir = Path.cwd()
-project_root = current_dir.parent
+project_root = Path(__file__).parent.parent
 
 # 3. Insert the project root path into the system path
 sys.path.insert(0, str(project_root))
