@@ -188,7 +188,12 @@ to enrich. Accepted formats:
 | Format | Notes |
 |---|---|
 | **FlatGeobuf** (`.fgb`) | Recommended — fast and compact |
+| **GeoPackage** (`.gpkg`) | Broadly compatible spatial format (QGIS, ArcGIS, GDAL) |
 | **CSV** (`.csv`) | Must contain a `geometry` column (WKT), or `lon`/`lat` (or `longitude`/`latitude`) columns |
+
+> **Tip:** AgCAP analysis outputs a `.gpkg` file (`settlements_analyzed_*.gpkg`)
+> alongside any exported CSVs. Use the `.gpkg` if your CSV does not contain
+> coordinate columns.
 
 ### Step 2 — Output folder and file name
 

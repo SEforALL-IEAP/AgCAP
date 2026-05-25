@@ -168,7 +168,7 @@ def ask_input_file():
     section("Step 1 of 6 — Input file")
     print()
     print("  Please select the AgCAP output file you want to enrich.")
-    print("  Accepted formats: FlatGeobuf (.fgb) or CSV (.csv).")
+    print("  Accepted formats: FlatGeobuf (.fgb), GeoPackage (.gpkg), or CSV (.csv).")
     print("  A file browser window will open.")
 
     while True:
@@ -177,8 +177,9 @@ def ask_input_file():
             "Opening file browser — select your AgCAP input file…",
             title="Select AgCAP input file",
             filetypes=[
-                ("Supported files", "*.fgb *.csv"),
+                ("Supported files", "*.fgb *.gpkg *.csv"),
                 ("FlatGeobuf",      "*.fgb"),
+                ("GeoPackage",      "*.gpkg"),
                 ("CSV",             "*.csv"),
                 ("All files",       "*.*"),
             ],
@@ -496,7 +497,7 @@ def build_extraction_image(start_year, end_year, base_temp):
 def load_vector(path):
     ext = os.path.splitext(path)[1].lower()
 
-    if ext == ".fgb":
+    if ext in (".fgb", ".gpkg"):
         gdf = gpd.read_file(path, engine="pyogrio")
     elif ext == ".csv":
         df = pd.read_csv(path)
@@ -522,6 +523,7 @@ def load_vector(path):
             sys.exit(1)
     else:
         print(f"  ✖  Unsupported file format: {ext}")
+        print("     Expected: .fgb, .gpkg, or .csv")
         sys.exit(1)
 
     if gdf.crs is None or gdf.crs.to_epsg() != 4326:
