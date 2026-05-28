@@ -24,8 +24,9 @@ dependencies:
       - rasterio>=1.4
       - rasterstats>=0.19
       # Data
-      - pandas>=2.0
+      - pandas>=2.2,<3.0
       - numpy>=2.0
+      - scikit-learn
       - pyarrow
       # App utilities
       - openpyxl

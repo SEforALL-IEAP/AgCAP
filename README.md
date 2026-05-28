@@ -38,93 +38,49 @@ You need the following installed:
 The project is organized as follows: (DRAFT)
 ```
 AgCAP_project_folder
-├───assets
-│   └───images
-├───data
-│   ├───processed
-│   │   ├───archive
-│   │   ├───input_analyzed
-│   │   ├───input_extracted
-│   │   └───input_voronoi
-│   ├───raw
-│   │   ├───admin
-│   │   │   ├───adm0
-│   │   │   │   └───input_file
-│   │   │   ├───adm1
-│   │   │   │   └───input_file
-│   │   │   ├───adm2
-│   │   │   │   └───input_file
-│   │   │   ├───adm3
-│   │   │   │   └───input_file
-│   │   │   └───adm4
-│   │   │       └───input_file
-│   │   ├───aridity_index
-│   │   │   └───input_file
-│   │   ├───clim_class
-│   │   │   └───input_file
-│   │   ├───conflict
-│   │   │   └───input_file
-│   │   ├───cropland
-│   │   │   └───input_file
-│   │   ├───crop_prod_spam
-│   │   │   └───input_file
-│   │   ├───cyclone_hazard
-│   │   │   └───input_file
-│   │   ├───diurn_range
-│   │   │   └───input_file
-│   │   ├───elevation
-│   │   │   └───input_file
-│   │   ├───food_security
-│   │   │   └───input_file
-│   │   ├───hot_days_30
-│   │   │   └───input_file
-│   │   ├───iep_elec_results
-│   │   │   └───input_file
-│   │   ├───livelihood_zones
-│   │   │   └───input_file
-│   │   ├───mini_grids
-│   │   │   └───input_file
-│   │   ├───mv_lines
-│   │   │   └───input_file
-│   │   ├───nightlight
-│   │   │   └───input_file
-│   │   ├───population
-│   │   │   └───input_file
-│   │   ├───precipitation
-│   │   │   └───input_file
-│   │   ├───pvout
-│   │   │   └───input_file
-│   │   ├───relative_humidity
-│   │   │   └───input_file
-│   │   ├───rwi
-│   │   │   └───input_file
-│   │   ├───settlements
-│   │   │   └───input_file
-│   │   ├───shoreline
-│   │   │   └───input_file
-│   │   ├───temperature
-│   │   │   └───input_file
-│   │   ├───t_time
-│   │   │   ├───input_air
-│   │   │   ├───input_capital
-│   │   │   ├───input_cities
-│   │   │   ├───input_ports
-│   │   │   └───input_railways
-│   │   └───w_occ
-│   │       └───input_file
-│   └───temp
-├───docs
-├───notebooks
-│   └───.ipynb_checkpoints
-├───outputs
-│   ├───data
-│   └───maps
-├───scripts
-│   ├───aux_scripts
-│   ├───dev_backups
-│   └───__pycache__
-└───visualization_platform
-
+├───agcap_platform/          # Importable platform package (Dash app, translations)
+├───assets/
+│   └───images/
+├───data/
+│   ├───processed/
+│   │   ├───input_analyzed/
+│   │   ├───input_extracted/
+│   │   └───input_voronoi/
+│   ├───raw/
+│   │   ├───admin/
+│   │   ├───aridity_index/
+│   │   ├───clim_class/
+│   │   ├───conflict/
+│   │   ├───cropland/
+│   │   ├───crop_prod_spam/
+│   │   ├───cyclone_hazard/
+│   │   ├───diurn_range/
+│   │   ├───elevation/
+│   │   ├───food_security/
+│   │   ├───hot_days_30/
+│   │   ├───iep_elec_results/
+│   │   ├───livelihood_zones/
+│   │   ├───mini_grids/
+│   │   ├───mv_lines/
+│   │   ├───nightlight/
+│   │   ├───population/
+│   │   ├───precipitation/
+│   │   ├───pvout/
+│   │   ├───relative_humidity/
+│   │   ├───rwi/
+│   │   ├───settlements/
+│   │   ├───shoreline/
+│   │   ├───temperature/
+│   │   ├───t_time/
+│   │   └───w_occ/
+│   └───temp/
+├───docs/
+├───notebooks/
+├───scripts/
+│   └───aux_scripts/
+├───environment.yml          # Dependency specification
+├───environment.lock.yml     # Exact frozen snapshot for reproducibility
+└───visual_app_launcher.py   # Standalone platform launcher
 ```
 ## 🗺️🔍 Usage for exploratory analysis using pre-compliled results (visualization -> multi-criteria site selection)
 
@@ -195,12 +151,21 @@ The settlements data dictionary can be found here:
 ### 4) Running the <span style="color:#007bff; font-weight:bold;">AgCAP Explorer</span> interactive platform
 - Although the visualization platform can be launched from within the last section of the [Core Analysis Notebook](notebooks/core_analysis_engine.ipynb), it is also possible to launch the platform without running the previous notebooks, in two ways:
     - A) Open the [Visual App Launcher Notebook](notebooks/visual_app_launcher.ipynb) notebook and run all cells to perform the data analysis and generate output plots, OR:
-    - B) Run the [Visual App Launcher](visualization_platform/visual_app_launcher.py) directly from Terminal. Navigate to the `visualization_platform` directory, open the Terminal and run:
+    - B) *RECOMMENDED* - Run the [Visual App Launcher](visual_app_launcher.py) directly from Terminal. From the project root, run:
         ```bash
         python visual_app_launcher.py
         ```
     This will open up the browser with the interactive visualization platform
 
+
+## 🐍 Python Environment
+
+Two environment files are provided:
+
+| File | Purpose | When to use |
+|---|---|---|
+| `environment.yml` | Dependency specification with loose version bounds | **Normal use.** Create or recreate your environment from this file: `mamba env create -f environment.yml` |
+| `environment.lock.yml` | Cross-platform snapshot — key packages pinned to exact versions validated during development | **Strict reproducibility.** Use this if you need to replicate results exactly and the `environment.yml` install gives different behaviour: `mamba env create -f environment.lock.yml` |
 
 ## 🗺️ AgCAP Expore Interactive Platform
 - ..
