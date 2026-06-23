@@ -34,10 +34,15 @@ from plotly.subplots import make_subplots
 warnings.filterwarnings('ignore')
 
 # Initialize hidden Tkinter root for file dialogs (only happens once now)
-root = tk.Tk()
-root.withdraw()
-root.attributes('-topmost', True)
+import os
 
+# Check if a display is available (local machine) or not (VM/server)
+if os.environ.get('DISPLAY') or os.name == 'nt':  # nt = Windows
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+else:
+    root = None  # No display available, running on VM
 
 # --- FUNCTIONS ---
 
