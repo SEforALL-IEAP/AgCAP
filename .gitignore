@@ -4,7 +4,15 @@ __pycache__/
 *.pyc
 
 # --- Data Exclusion ---
-
+# Ignore everything inside data/processed recursively
+data/processed/**/*
+# Do NOT ignore directories
+!data/processed/**/
+# Exception: Track .gitkeep files
+!data/processed/**/.gitkeep
+# Ignore temp folder
+data/temp/**/*
+!data/temp/**/
 # 1. Ignore everything inside data/raw recursively
 data/raw/**/*
 
