@@ -1,28 +1,37 @@
-name: agcap_env
+name: agcapenv
 channels:
   - conda-forge
+  - defaults
 dependencies:
   - python=3.13
-  
-  - numpy
-  - pandas
   - scipy
   - scikit-learn
-  
-  - geopandas
-  - shapely
-  - rasterio
-  - rasterstats
-  - leafmap
-  - pyproj
-  
-  - dash
-  - plotly
-  - matplotlib
-  
-  - requests
-  - ipython
   - ipykernel
+  - ipywidgets
   - ipyleaflet
+  - leafmap
+  - matplotlib
   - tk
-  - openpyxl
+  - pip
+  - pip:
+      # Core app — pin tightly; major versions have breaking changes
+      - dash==3.3.0
+      - dash-bootstrap-components==2.0.4
+      - plotly>=6.5,<7
+      # Geospatial stack
+      - geopandas>=1.0
+      - fiona>=1.9
+      - pyproj>=3.6
+      - shapely>=2.0
+      - rasterio>=1.4
+      - rasterstats>=0.19
+      # Data
+      - pandas>=2.2,<3.0
+      - numpy>=2.0
+      - pyarrow
+      # App utilities
+      - openpyxl
+      - python-dotenv
+      - gunicorn
+      - flask>=3.0
+      - requests

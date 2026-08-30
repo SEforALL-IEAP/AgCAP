@@ -622,7 +622,65 @@ def get_single_input_file_path(input_directory_path: Union[str, Path], allowed_e
         raise ValueError(f'Multiple files ({num_files}) matching the specified criteria found in: {input_dir}.\nPlease ensure **only one** file (e.g., one .shp or one .gpkg) is present for processing.Found files:{file_names}')
     else:
         return matching_file_list[0]
-    
+
+def get_multiple_input_file_path(input_directory_path: Union[str, Path], allowed_extensions: Optional[List[str]] = None) -> Path:
+    """
+    Checks the specified directory for files matching the allowed extensions.
+    - If exactly one file is found, returns it.
+    - If multiple files are found, prompts the user to select one.
+    - If none are found, raises FileNotFoundError.
+    """
+    input_dir = Path(input_directory_path)
+    if not input_dir.is_dir():
+        raise FileNotFoundError(f'Input directory not found or is not a directory: {input_dir}')
+
+    if allowed_extensions:
+        normalized_extensions = [
+            ext if ext.startswith('.') else f'.{ext}'
+            for ext in [e.lower() for e in allowed_extensions]
+        ]
+
+    matching_file_list = []
+    for p in input_dir.iterdir():
+        if p.is_file():
+            if allowed_extensions:
+                if p.suffix.lower() in normalized_extensions:
+                    matching_file_list.append(p)
+            else:
+                matching_file_list.append(p)
+
+    num_files = len(matching_file_list)
+
+    # No files found
+    if num_files == 0:
+        ext_hint = f' matching extensions {allowed_extensions}' if allowed_extensions else ''
+        raise FileNotFoundError(
+            f'No files{ext_hint} found in the input folder: {input_dir}. '
+            'Please ensure the required file is placed there.'
+        )
+
+    # Exactly one file found → return it directly
+    if num_files == 1:
+        return matching_file_list[0]
+
+    # Multiple files found → ASK USER
+    print(f"\nMultiple files ({num_files}) found in: {input_dir}")
+    print("Please select the file to use:\n")
+
+    for i, f in enumerate(matching_file_list, start=1):
+        print(f"  {i}. {f.name}")
+
+    while True:
+        selection = input("\nEnter the number of the file you want to use: ")
+        try:
+            idx = int(selection)
+            if 1 <= idx <= num_files:
+                return matching_file_list[idx - 1]
+            else:
+                print(f"Please enter a number between 1 and {num_files}.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
 def process_categorical_raster(gdf, raster_input, prefix):
     """
     Calculates categorical statistics for a raster and appends them to the 

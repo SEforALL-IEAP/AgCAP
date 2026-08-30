@@ -1,0 +1,67 @@
+en,fr,pt
+fid,fid,fid
+id,id,id
+Region,Région,Região
+District,District,Distrito
+Commune,Commune,Comuna
+Fokontany,Fokontany,Fokontany
+Population,Population,População
+Population density,Densité de population,Densidade populacional
+Population within 20 km,Population dans un rayon de 20 km,População num raio de 20 km
+Distance from MV power lines,Distance des lignes électriques MV,Distância de linhas de energia MV
+Distance from nearest mini-grid,Distance du mini-réseau le plus proche,Distância da mini-rede mais próxima
+Night ligths intensity,Intensité des lumières nocturnes,Intensidade das luzes noturnas
+Electrification status nightlights,Statut d'électrification (lumières nocturnes),Estado de eletrificação (luzes noturnas)
+Electrification status (IEP study),Statut d'électrification (étude IEP),Estado de eletrificação (estudo IEP)
+Least-cost electrification mode (IEP results),Mode d'électrification au moindre coût (résultats IEP),Modo de eletrificação de menor custo (resultados IEP)
+Relative Wealth Index,Indice de richesse relative,Índice de Riqueza Relativa
+Percentage of food-insecure people,Pourcentage de personnes en insécurité alimentaire,Percentagem de pessoas em insegurança alimentar
+Livelihoods,Moyens de subsistance,Meios de subsistência
+Conflict fatalities nearby,Victimes de conflits à proximité,Vítimas de conflitos próximas
+Cyclone hazard (1 in 100 years wind speed),Risque de cyclone (vitesse du vent 1 sur 100 ans),Risco de ciclone (velocidade do vento 1 em 100 anos)
+Elevation,Altitude,Elevação
+Mean temperature,Température moyenne,Temperatura média
+Mean diurnal temperature range,Amplitude thermique diurne moyenne,Amplitude térmica diurna média
+Cooling Degree Days Cold Room at 4C,Degrés-jours de refroidissement Chambre froide à 4°C,Graus-dia de Refrigeração Câmara Fria a 4°C
+Hot days (>30C) in a year,Jours chauds (>30°C) par an,Dias quentes (>30°C) por ano
+Relative humidity,Humidité relative,Humidade relativa
+Precipitation,Précipitations,Precipitação
+Aridity Index,Indice d'aridité,Índice de Aridez
+Climate class,Classe climatique,Classe climática
+Solar PV Output (kWh/year per installed kW),Production PV solaire (kWh/an par kW installé),Produção Solar FV (kWh/ano por kW instalado)
+Cropland percentage of Influence area,Pourcentage de terres cultivées de la zone d'influence,Percentagem de terras cultivadas da área de influência
+Permanent water area (ha) within 10 km,Surface d'eau permanente (ha) dans un rayon de 10 km,Área de água permanente (ha) num raio de 10 km
+Distance from coastlines,Distance des côtes,Distância das costas
+Travel time airports,Temps de trajet vers les aéroports,Tempo de viagem para aeroportos
+Travel time ports,Temps de trajet vers les ports,Tempo de viagem para portos
+Travel time cities,Temps de trajet vers les villes,Tempo de viagem para cidades
+Travel time capital,Temps de trajet vers la capitale,Tempo de viagem para a capital
+Travel time railway stations,Temps de trajet vers les gares,Tempo de viagem para estações ferroviárias
+Export Market Accessibility,Accessibilité au marché d'exportation,Acessibilidade ao mercado de exportação
+National Market Accessibility,Accessibilité au marché national,Acessibilidade ao mercado nacional
+Fresh Markets Accessibility,Accessibilité aux marchés frais,Acessibilidade aos mercados frescos
+Farming Activity,Activité agricole,Atividade agrícola
+Ag Cooling Demand Export Market,Demande Refroid. Agri. Marché Export,Demanda Refrigeração Agri. Mercado Exportação
+Ag Cooling Demand National Market,Demande Refroid. Agri. Marché National,Demanda Refrigeração Agri. Mercado Nacional
+Ag Cooling Demand Fresh Markets,Demande Refroid. Agri. Marchés Frais,Demanda Refrigeração Agri. Mercados Frescos
+Ag Cooling Demand ALL Markets,Demande Refroid. Agri. TOUS Marchés,Demanda Refrigeração Agri. TODOS Mercados
+Banana production,Production de Banane,Produção de Banana
+Cassava production,Production de Manioc,Produção de Mandioca
+Citrus production,Production d'Agrumes,Produção de Citrinos
+Cowpea production,Production de Niébé,Produção de Feijão-frade
+Other Roots production,Production d'Autres Tubercules,Produção de Outras Raízes
+Other Tropical Fruit production,Production d'Autres Fruits Tropicaux,Produção de Outras Frutas Tropicais
+Other Vegetables production,Production d'Autres Légumes,Produção de Outros Vegetais
+Potato production,Production de Pomme de Terre,Produção de Batata
+Sweet Potato production,Production de Patate Douce,Produção de Batata-doce
+Temperate Fruit production,Production de Fruits Tempérés,Produção de Frutas Temperadas
+Tomato production,Production de Tomate,Produção de Tomate
+Fishing Activity (Marine),Activité de pêche (Marine),Atividade de pesca (Marinha)
+Fishing Activity (Inland),Activité de pêche (Continentale),Atividade de pesca (Continental)
+Fishing Activity (Highest type),Activité de pêche (Type prédominant),Atividade de pesca (Tipo predominante)
+Fishing type,Type de pêche,Tipo de pesca
+Fish Cooling Demand Export Market,Demande Refroid. Pêche Marché Export,Demanda Refrigeração Pesca Mercado Exportação
+Fish Cooling Demand National Market,Demande Refroid. Pêche Marché National,Demanda Refrigeração Pesca Mercado Nacional
+Fish Cooling Demand Fresh Markets,Demande Refroid. Pêche Marchés Frais,Demanda Refrigeração Pesca Mercados Frescos
+Fish Cooling Demand ALL Markets,Demande Refroid. Pêche TOUS Marchés,Demanda Refrigeração Pesca TODOS Mercados
+geometry,geometry,geometry
