@@ -55,7 +55,7 @@ Agriculture Production,Potato production,Potato production associated with the s
 Agriculture Production,Sweet Potato production,Sweet potato production associated with the settlement influence area [tonnes/year]
 Agriculture Production,Temperate Fruit production,Temperate fruit production associated with the settlement influence area [tonnes/year]
 Agriculture Production,Tomato production,Tomato production associated with the settlement influence area [tonnes/year]
-Fishing Cooling Demand,Fishing Activity (marine + inland),"Composite indicator of  fishing activity (both marine and inland) based o  water resources available (e.g. distance from shorelines and availability of permanent inland water nearby (0=lowest, 1=highest)"
+Fishing Cooling Demand,Fishing Activity (Highest type),"Composite indicator of fishing activity, taken as the higher of the marine and inland sub-indices (0=lowest, 1=highest)."
 Fishing Cooling Demand,Fishing type,Fishing modality (marine or inland)
 Fishing Cooling Demand,Fish Cooling Demand Export Market,"Composite indicator of cooling/ice making demand for fish products destined for export markets (0=lowest, 1=highest)"
 Fishing Cooling Demand,Fish Cooling Demand National Market,"Composite indicator of cooling/ice making demand for fish products destined for national distribution (0=lowest, 1=highest)"

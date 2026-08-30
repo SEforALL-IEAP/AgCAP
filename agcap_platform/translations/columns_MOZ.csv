@@ -74,7 +74,9 @@ Temperate Fruit production,Production de Fruits Tempérés,Produção de Frutas 
 Tobacco production,Production de Tabac,Produção de Tabaco
 Vegetables production,Production de Légumes,Produção de Hortaliças
 Tomato production,Production de Tomate,Produção de Tomate
-Fishing Activity (marine + inland),Activité de pêche (marine + continentale),Atividade de pesca (marinha + continental)
+Fishing Activity (Marine),Activité de pêche (Marine),Atividade de pesca (Marinha)
+Fishing Activity (Inland),Activité de pêche (Continentale),Atividade de pesca (Continental)
+Fishing Activity (Highest type),Activité de pêche (Type prédominant),Atividade de pesca (Tipo predominante)
 Fishing type,Type de pêche,Tipo de pesca
 Fish Cooling Demand Export Market,Demande Refroid. Pêche Marché Export,Demanda Refrigeração Pesca Mercado Exportação
 Fish Cooling Demand National Market,Demande Refroid. Pêche Marché National,Demanda Refrigeração Pesca Mercado Nacional
