@@ -34,7 +34,7 @@ from translation_loader import t, get_column_translation, get_spider_label_patte
 
 COUNTRY_CODE  = 'MOZ'
 FIGURE_TITLE  = 'AgCAP Mozambique'
-DEFAULT_COLUMN = 'Ag Cooling Demand ALL Markets'
+DEFAULT_COLUMN = 'Ag Cooling Potential ALL Markets'
 
 # Folder that create_app() / standalone run searches for the input dataset.
 # Notebooks ignore this — they load data themselves and pass it to agcap_explorer().
@@ -62,12 +62,12 @@ ELECTRIFICATION_COLUMN = 'Electrification status (IEP study)'
 # Analysis chart column names (English — translations applied at display time).
 # All names must exist as columns in the dataset.
 AG_METRICS = [
-    'Ag Cooling Demand Export Market', 'Ag Cooling Demand National Market',
-    'Ag Cooling Demand Fresh Markets', 'Ag Cooling Demand ALL Markets'
+    'Ag Cooling Potential Export Market', 'Ag Cooling Potential National Market',
+    'Ag Cooling Potential Fresh Markets', 'Ag Cooling Potential ALL Markets'
 ]
 FISH_METRICS = [
-    'Fish Cooling Demand Export Market', 'Fish Cooling Demand National Market',
-    'Fish Cooling Demand Fresh Markets', 'Fish Cooling Demand ALL Markets'
+    'Fish Cooling Potential Export Market', 'Fish Cooling Potential National Market',
+    'Fish Cooling Potential Fresh Markets', 'Fish Cooling Potential ALL Markets'
 ]
 PROD_METRICS = [
     'Banana production', 'Cassava production', 'Citrus production',
@@ -1783,7 +1783,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
-                        html.Summary(t('analysis.section.ag_demand', lang)),
+                        html.Summary(t('analysis.section.ag_potential', lang)),
                         html.Div([
                             dcc.Graph(id='spider-chart-ag', config={'displayModeBar': False}, style={'height': '200px'})
                         ], className="analysis-content-inner")
@@ -1799,7 +1799,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
-                        html.Summary(t('analysis.section.fish_demand', lang)),
+                        html.Summary(t('analysis.section.fish_potential', lang)),
                         html.Div([
                             dcc.Graph(id='spider-chart-fish', config={'displayModeBar': False}, style={'height': '200px'})
                         ], className="analysis-content-inner")
@@ -2718,8 +2718,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
         prod_text = t('spider_charts.total_production', lang, value=f"{total_prod:,.0f}")
 
-        fig_ag = build_spider_figure(df, AG_METRICS, t('spider_charts.ag_demand', lang), "#FBB800", agg='mean', manual_range=[0,1], lang=lang)
-        fig_fish = build_spider_figure(df, FISH_METRICS, t('spider_charts.fish_demand', lang), "#3498db", agg='mean', manual_range=[0,1], lang=lang)
+        fig_ag = build_spider_figure(df, AG_METRICS, t('spider_charts.ag_potential', lang), "#FBB800", agg='mean', manual_range=[0,1], lang=lang)
+        fig_fish = build_spider_figure(df, FISH_METRICS, t('spider_charts.fish_potential', lang), "#3498db", agg='mean', manual_range=[0,1], lang=lang)
         fig_prod = build_spider_figure(df, PROD_METRICS, t('spider_charts.production', lang), "#2ecc71", agg='sum', manual_range=None, lang=lang)
 
         # --- POPULATION & DEMOGRAPHICS ---

@@ -39,11 +39,11 @@ Market Accessibility,Travel time railway stations,Estimated travel time from the
 Market Accessibility,Export Market Accessibility,"Composite indicator of market accessibility to export markets. Weighted average of travel times to airports,ports, railway stations and capital city (0=lowest, 1=highest)"
 Market Accessibility,National Market Accessibility,"Composite indicator of market accessibility to export markets. Weighted average of travel times to capital city, nearest cities, airports,ports, railway stations, and nearby population (0=lowest, 1=highest)"
 Market Accessibility,Fresh Markets Accessibility,"Composite indicator of market accessibility to export markets. Weighted average of travel times to capital city, nearest cities, airports,ports, railway stations (0=lowest, 1=highest)"
-Agricultural Cooling Demand,Farming Activity,"Composite indicator of market accessibility to export markets. Weighted average of nearby population, travel times to capital city, nearest cities, airports,ports, railway stations (0=lowest, 1=highest)"
-Agricultural Cooling Demand,Ag Cooling Demand Export Market,"Composite indicator of cooling demand for fish products destined for export markets (0=lowest, 1=highest)"
-Agricultural Cooling Demand,Ag Cooling Demand National Market,"Composite indicator of cooling demand for fish products destined for national distribution (0=lowest, 1=highest)"
-Agricultural Cooling Demand,Ag Cooling Demand Fresh Markets,"Composite indicator of cooling demand for fish products destined for local fresh markets (0=lowest, 1=highest)"
-Agricultural Cooling Demand,Ag Cooling Demand ALL Markets,"Composite indicator of cooling demand for fish products across all destination markets (0=lowest, 1=highest)"
+Agricultural Cooling Potential,Farming Activity,"Composite indicator of farming activity. Weighted average of nearby population, travel times to capital city, nearest cities, airports,ports, railway stations (0=lowest, 1=highest)"
+Agricultural Cooling Potential,Ag Cooling Potential Export Market,"Composite indicator of cooling potential for agricultural products destined for export markets (0=lowest, 1=highest)"
+Agricultural Cooling Potential,Ag Cooling Potential National Market,"Composite indicator of cooling potential for agricultural products destined for national distribution (0=lowest, 1=highest)"
+Agricultural Cooling Potential,Ag Cooling Potential Fresh Markets,"Composite indicator of cooling potential for agricultural products destined for local fresh markets (0=lowest, 1=highest)"
+Agricultural Cooling Potential,Ag Cooling Potential ALL Markets,"Composite indicator of cooling potential for agricultural products across all destination markets (0=lowest, 1=highest)"
 Agriculture Production,Banana production,Banana production associated with the settlement influence area [tonnes/year]
 Agriculture Production,Cassava production,Cassava production associated with the settlement influence area [tonnes/year]
 Agriculture Production,Citrus production,Citrus production associated with the settlement influence area [tonnes/year]
@@ -55,10 +55,10 @@ Agriculture Production,Potato production,Potato production associated with the s
 Agriculture Production,Sweet Potato production,Sweet potato production associated with the settlement influence area [tonnes/year]
 Agriculture Production,Temperate Fruit production,Temperate fruit production associated with the settlement influence area [tonnes/year]
 Agriculture Production,Tomato production,Tomato production associated with the settlement influence area [tonnes/year]
-Fishing Cooling Demand,Fishing Activity (Highest type),"Composite indicator of fishing activity, taken as the higher of the marine and inland sub-indices (0=lowest, 1=highest)."
-Fishing Cooling Demand,Fishing type,Fishing modality (marine or inland)
-Fishing Cooling Demand,Fish Cooling Demand Export Market,"Composite indicator of cooling/ice making demand for fish products destined for export markets (0=lowest, 1=highest)"
-Fishing Cooling Demand,Fish Cooling Demand National Market,"Composite indicator of cooling/ice making demand for fish products destined for national distribution (0=lowest, 1=highest)"
-Fishing Cooling Demand,Fish Cooling Demand Fresh Markets,"Composite indicator of cooling/ice making demand for fish products destined for local fresh markets (0=lowest, 1=highest)"
-Fishing Cooling Demand,Fish Cooling Demand ALL Markets,"Composite indicator of cooling/ice making demand for fish products across all destination markets (0=lowest, 1=highest)"
+Fishing Cooling Potential,Fishing Activity (Highest type),"Composite indicator of fishing activity, taken as the higher of the marine and inland sub-indices (0=lowest, 1=highest)."
+Fishing Cooling Potential,Fishing type,Fishing modality (marine or inland)
+Fishing Cooling Potential,Fish Cooling Potential Export Market,"Composite indicator of cooling/ice making potential for fish products destined for export markets (0=lowest, 1=highest)"
+Fishing Cooling Potential,Fish Cooling Potential National Market,"Composite indicator of cooling/ice making potential for fish products destined for national distribution (0=lowest, 1=highest)"
+Fishing Cooling Potential,Fish Cooling Potential Fresh Markets,"Composite indicator of cooling/ice making potential for fish products destined for local fresh markets (0=lowest, 1=highest)"
+Fishing Cooling Potential,Fish Cooling Potential ALL Markets,"Composite indicator of cooling/ice making potential for fish products across all destination markets (0=lowest, 1=highest)"
 Geometry,geometry,Geometric representation of the settlement boundaries

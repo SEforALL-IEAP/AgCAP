@@ -4,8 +4,8 @@ landing.subtitle,Agricultural Cold Chain Analysis & Prioritization Tool,Outil d'
 landing.country_prompt,Select a country to launch the platform,Sélectionnez un pays pour lancer la plateforme,Selecione um país para iniciar a plataforma
 landing.country.madagascar,Madagascar,Madagascar,Madagáscar
 landing.country.mozambique,Mozambique,Mozambique,Moçambique
-landing.country_desc.madagascar,Settlements analysis and cooling demand assessment.,Analyse des établissements et évaluation de la demande de refroidissement.,Análise de assentamentos e avaliação da demanda de resfriamento.
-landing.country_desc.mozambique,Settlements analysis and cooling demand assessment.,Analyse des établissements et évaluation de la demande de refroidissement.,Análise de assentamentos e avaliação da demanda de resfriamento.
+landing.country_desc.madagascar,Settlements analysis and cooling potential assessment.,Analyse des établissements et évaluation du potentiel de refroidissement.,Análise de assentamentos e avaliação do potencial de resfriamento.
+landing.country_desc.mozambique,Settlements analysis and cooling potential assessment.,Analyse des établissements et évaluation du potentiel de refroidissement.,Análise de assentamentos e avaliação do potencial de resfriamento.
 landing.button.launch,Launch,Lancer,Iniciar
 login.title,Login,Connexion,Login
 login.username_label,Username,Nom d'utilisateur,Nome de usuário
@@ -37,9 +37,9 @@ analysis.section.electrification,Electrification,Électrification,Eletrificaçã
 analysis.section.economic,"Economic, Livelihoods, and Risks","Économie, Moyens de Subsistance et Risques","Economia, Meios de Vida e Riscos"
 analysis.section.geography,Physical Geography & Climate,Géographie Physique et Climat,Geografia Física e Clima
 analysis.section.market,Market Accessibility,Accessibilité aux Marchés,Acessibilidade ao Mercado
-analysis.section.ag_demand,Agricultural Cooling Demand,Demande en Refroidissement Agricole,Demanda de Resfriamento Agrícola
+analysis.section.ag_potential,Agricultural Cooling Potential,Potentiel de Refroidissement Agricole,Potencial de Resfriamento Agrícola
 analysis.section.ag_production,Agriculture Production,Production Agricole,Produção Agrícola
-analysis.section.fish_demand,Fishing Cooling Demand,Demande en Refroidissement pour la Pêche,Demanda de Resfriamento Pesqueiro
+analysis.section.fish_potential,Fishing Cooling Potential,Potentiel de Refroidissement pour la Pêche,Potencial de Resfriamento Pesqueiro
 analysis.placeholder,Charts for {section} will appear here.,Les graphiques pour {section} apparaîtront ici.,Gráficos para {section} aparecerão aqui.
 table.data_button,Data,Données,Dados
 table.layer_label,LAYER:,COUCHE:,CAMADA:
@@ -57,8 +57,8 @@ layer_settings.size,Size,Taille,Tamanho
 layer_settings.opacity,Opacity,Opacité,Opacidade
 layer_settings.single_color,Single Color,Couleur Unique,Cor Única
 spider_charts.total_production,Total perishable agriculture production (t/y) {value},Production agricole périssable totale (t/an) {value},Produção agrícola perecível total (t/a) {value}
-spider_charts.ag_demand,Ag Demand,Demande Agri.,Demanda Agrícola
-spider_charts.fish_demand,Fish Demand,Demande Pêche,Demanda de Peixe
+spider_charts.ag_potential,Ag Potential,Potentiel Agri.,Potencial Agrícola
+spider_charts.fish_potential,Fish Potential,Potentiel Pêche,Potencial de Peixe
 spider_charts.production,Production,Production,Produção
 branding.subtitle,Sustainable Energy for All,Sustainable Energy for All,Energia Sustentável para Todos
 basemap.openstreetmap,OpenStreetMap,OpenStreetMap,OpenStreetMap
@@ -113,7 +113,7 @@ analysis.geography.avg_temp,Avg Temperature,Température moy.,Temperatura méd.
 analysis.geography.avg_precip,Avg Precipitation,Précipitation moy.,Précipitation méd.
 analysis.geography.avg_solar,Avg Solar PV,PV solaire moy.,PV solar méd.
 analysis.geography.climate_title,Climate Class Distribution,Distribution des classes climatiques,Distribuição de classes climáticas
-analysis.geography.cooling_solar_title,Cooling Demand vs Solar PV (bubble = population),Demande froid vs PV solaire (bulle = population),Demanda de frio vs PV solar (bolha = população)
+analysis.geography.cooling_solar_title,Cooling Potential vs Solar PV (bubble = population),Potentiel froid vs PV solaire (bulle = population),Potencial de frio vs PV solar (bolha = população)
 analysis.market.avg_cities,Avg Time to Cities,Temps villes moy.,Tempo p/ cidades méd.
 analysis.market.avg_airports,Avg Time to Airports,Temps aéroports moy.,Tempo p/ aeroportos méd.
 analysis.market.avg_ports,Avg Time to Ports,Temps ports moy.,Tempo p/ portos méd.

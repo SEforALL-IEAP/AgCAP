@@ -121,26 +121,26 @@ def get_spider_label_patterns(lang='en'):
     Get patterns to strip from column names for spider chart labels.
 
     These patterns are used to clean column names for display on polar axis labels.
-    For example: 'Ag Cooling Demand Export Market' → 'Export Market'
+    For example: 'Ag Cooling Potential Export Market' → 'Export Market'
     """
     if lang == 'fr':
         return {
-            'ag': 'Demande Refroid. Agri. ',
-            'fish': 'Demande Refroid. Pêche ',
+            'ag': 'Potentiel Refroid. Agri. ',
+            'fish': 'Potentiel Refroid. Pêche ',
             'prod_prefix': 'Production de ',
             'prod_suffix': ''
         }
     elif lang == 'pt':
         return {
-            'ag': 'Demanda Refrigeração Agri. ',
-            'fish': 'Demanda Refrigeração Pesca ',
+            'ag': 'Potencial Refrigeração Agri. ',
+            'fish': 'Potencial Refrigeração Pesca ',
             'prod_prefix': 'Produção de ',
             'prod_suffix': ''
         }
     else:
         return {
-            'ag': 'Ag Cooling Demand ',
-            'fish': 'Fish Cooling Demand ',
+            'ag': 'Ag Cooling Potential ',
+            'fish': 'Fish Cooling Potential ',
             'prod_prefix': '',
             'prod_suffix': ' production'
         }
