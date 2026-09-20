@@ -653,7 +653,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title):
                             html.Div("Charts for Market Access will appear here.", className="analysis-content-inner")
                         ]),
                          html.Details([
-                            html.Summary("Agricultural Cooling Demand"),
+                            html.Summary("Agricultural Cooling Potential"),
                             # --- ADDED AG CHART HERE ---
                             html.Div([
                                 dcc.Graph(id='spider-chart-ag', config={'displayModeBar': False}, style={'height': '200px'})
@@ -676,7 +676,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title):
                             ], className="analysis-content-inner")
                         ], open=True),
                         html.Details([
-                            html.Summary("Fishing Cooling Demand"),
+                            html.Summary("Fishing Cooling Potential"),
                             # --- RENAMED FISHING CHART ID ---
                             html.Div([
                                 dcc.Graph(id='spider-chart-fish', config={'displayModeBar': False}, style={'height': '200px'})
@@ -737,7 +737,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title):
     def build_spider_figure(df, metrics, title, color, agg='mean', manual_range=None):
         # 1. Setup labels
         # Remove common prefixes to make chart readable
-        labels = [m.replace('Ag Cooling Demand ', '').replace('Fish Cooling Demand ', '').replace(' production', '') for m in metrics]
+        labels = [m.replace('Ag Cooling Potential ', '').replace('Fish Cooling Potential ', '').replace(' production', '') for m in metrics]
         
         # 2. Calculate Values
         values = []
@@ -870,13 +870,13 @@ def agcap_explorer(settles_gdf, default_column, figure_title):
 
         # 4. Define Metrics
         ag_metrics = [
-            'Ag Cooling Demand Export Market', 'Ag Cooling Demand National Market',
-            'Ag Cooling Demand Fresh Markets', 'Ag Cooling Demand ALL Markets'
+            'Ag Cooling Potential Export Market', 'Ag Cooling Potential National Market',
+            'Ag Cooling Potential Fresh Markets', 'Ag Cooling Potential ALL Markets'
         ]
 
         fish_metrics = [
-            'Fish Cooling Demand Export Market', 'Fish Cooling Demand National Market',
-            'Fish Cooling Demand Fresh Markets', 'Fish Cooling Demand ALL Markets'
+            'Fish Cooling Potential Export Market', 'Fish Cooling Potential National Market',
+            'Fish Cooling Potential Fresh Markets', 'Fish Cooling Potential ALL Markets'
         ]
 
         # Production Metrics
@@ -899,8 +899,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title):
         prod_text = f"Total perishable agriculture production (t/y) {total_prod:,.0f}"
 
         # 6. Generate Figures
-        fig_ag = build_spider_figure(df, ag_metrics, "Ag Demand", "#FBB800", agg='mean', manual_range=[0,1])
-        fig_fish = build_spider_figure(df, fish_metrics, "Fish Demand", "#3498db", agg='mean', manual_range=[0,1])
+        fig_ag = build_spider_figure(df, ag_metrics, "Ag Potential", "#FBB800", agg='mean', manual_range=[0,1])
+        fig_fish = build_spider_figure(df, fish_metrics, "Fish Potential", "#3498db", agg='mean', manual_range=[0,1])
         fig_prod = build_spider_figure(df, prod_metrics, "Production", "#2ecc71", agg='sum', manual_range=None)
 
         return fig_ag, fig_fish, fig_prod, prod_text

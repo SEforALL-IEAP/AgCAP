@@ -61,7 +61,7 @@ log.setLevel(logging.ERROR)
 # Initialize the app
 viz_results = agcap_explorer(
     settles_gdf_analyzed, 
-    default_column='Fish Cooling Demand ALL Markets', 
+    default_column='Fish Cooling Potential ALL Markets',
     figure_title="AgCAP results"
 )
 
