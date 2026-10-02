@@ -1,0 +1,68 @@
+en,fr,pt
+fid,fid,fid
+id,id,id
+State,État,Estado
+LGA,LGA,LGA
+Population,Population,Population
+Population density,Densité de population,Population density
+Population within 20 km,Population dans un rayon de 20 km,Population within 20 km
+Distance from MV power lines,Distance des lignes électriques MV,Distance from MV power lines
+Distance from nearest mini-grid,Distance du mini-réseau le plus proche,Distance from nearest mini-grid
+Night ligths intensity,Intensité des lumières nocturnes,Night ligths intensity
+Electrification status nightlights,Statut d'électrification (lumières nocturnes),Electrification status nightlights
+Relative Wealth Index,Indice de richesse relative,Relative Wealth Index
+Percentage of food-insecure people,Pourcentage de personnes en insécurité alimentaire,Percentage of food-insecure people
+Livelihoods,Moyens de subsistance,Livelihoods
+Conflict fatalities nearby,Victimes de conflits à proximité,Conflict fatalities nearby
+Cyclone hazard (1 in 100 years wind speed),Risque de cyclone (vitesse du vent 1 sur 100 ans),Cyclone hazard (1 in 100 years wind speed)
+Elevation,Altitude,Elevation
+Mean temperature,Température moyenne,Mean temperature
+Mean diurnal temperature range,Amplitude thermique diurne moyenne,Mean diurnal temperature range
+Cooling Degree Days Cold Room at 4C,Degrés-jours de refroidissement Chambre froide à 4°C,Cooling Degree Days Cold Room at 4C
+Hot days (>30C) in a year,Jours chauds (>30°C) par an,Hot days (>30C) in a year
+Relative humidity,Humidité relative,Relative humidity
+Precipitation,Précipitations,Precipitation
+Aridity Index,Indice d'aridité,Aridity Index
+Climate class,Classe climatique,Climate class
+Solar PV Output (kWh/year per installed kW),Production PV solaire (kWh/an par kW installé),Solar PV Output (kWh/year per installed kW)
+Cropland percentage of Influence area,Pourcentage de terres cultivées de la zone d'influence,Cropland percentage of Influence area
+Permanent water area (ha) within 10 km,Surface d'eau permanente (ha) dans un rayon de 10 km,Permanent water area (ha) within 10 km
+Distance from coastlines,Distance des côtes,Distance from coastlines
+Travel time airports,Temps de trajet vers les aéroports,Travel time airports
+Travel time ports,Temps de trajet vers les ports,Travel time ports
+Travel time cities,Temps de trajet vers les villes,Travel time cities
+Travel time capital,Temps de trajet vers la capitale,Travel time capital
+Travel time railway stations,Temps de trajet vers les gares,Travel time railway stations
+Export Market Accessibility,Accessibilité au marché d'exportation,Export Market Accessibility
+National Market Accessibility,Accessibilité au marché national,National Market Accessibility
+Fresh Markets Accessibility,Accessibilité aux marchés frais,Fresh Markets Accessibility
+Farming Activity,Activité agricole,Farming Activity
+Ag Cooling Potential Export Market,Potentiel Refroid. Agri. Marché Export,Ag Cooling Potential Export Market
+Ag Cooling Potential National Market,Potentiel Refroid. Agri. Marché National,Ag Cooling Potential National Market
+Ag Cooling Potential Fresh Markets,Potentiel Refroid. Agri. Marchés Frais,Ag Cooling Potential Fresh Markets
+Ag Cooling Potential ALL Markets,Potentiel Refroid. Agri. TOUS Marchés,Ag Cooling Potential ALL Markets
+Banana production,Production de Banane,Banana production
+Bean production,Production de Haricot,Bean production
+Cassava production,Production de Manioc,Cassava production
+Citrus production,Production d'Agrumes,Citrus production
+Onion production,Production d'Oignon,Onion production
+Other Roots production,Production d'Autres Tubercules,Other Roots production
+Other Tropical Fruit production,Production d'Autres Fruits Tropicaux,Other Tropical Fruit production
+Vegetables production,Production de Légumes,Vegetables production
+Potato production,Production de Pomme de Terre,Potato production
+Sweet Potato production,Production de Patate Douce,Sweet Potato production
+Temperate Fruit production,Production de Fruits Tempérés,Temperate Fruit production
+Tomato production,Production de Tomate,Tomato production
+Fishing Activity (Highest type),Activité de pêche (Type prédominant),Fishing Activity (Highest type)
+Fishing Activity (Marine),Activité de pêche (Marine),Fishing Activity (Marine)
+Fishing Activity (Inland),Activité de pêche (Continentale),Fishing Activity (Inland)
+Fishing type,Type de pêche,Fishing type
+Fish Cooling Potential Export Market,Potentiel Refroid. Pêche Marché Export,Fish Cooling Potential Export Market
+Fish Cooling Potential National Market,Potentiel Refroid. Pêche Marché National,Fish Cooling Potential National Market
+Fish Cooling Potential Fresh Markets,Potentiel Refroid. Pêche Marchés Frais,Fish Cooling Potential Fresh Markets
+Fish Cooling Potential ALL Markets,Potentiel Refroid. Pêche TOUS Marchés,Fish Cooling Potential ALL Markets
+geometry,geometry,geometry
+Irrigation: months with no need (rainfed),Irrigation : mois sans besoin (pluvial),Irrigação: meses sem necessidade (de sequeiro)
+Irrigation: months with (moderate) need,Irrigation : mois avec besoin (modéré),Irrigação: meses com necessidade (moderada)
+Irrigation: months with (critical) need,Irrigation : mois avec besoin (critique),Irrigação: meses com necessidade (crítica)
+Irrigation: months with (moderate + critical) need,Irrigation : mois avec besoin (modéré + critique),Irrigação: meses com necessidade (moderada + crítica)

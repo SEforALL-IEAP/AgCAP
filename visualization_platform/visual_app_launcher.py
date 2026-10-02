@@ -11,8 +11,7 @@ import logging
 import tkinter as tk
 from tkinter import filedialog
 
-current_dir = Path.cwd()
-project_root = current_dir.parent
+project_root = Path(__file__).resolve().parent.parent
 
 # 3. Insert the project root path into the system path
 sys.path.insert(0, str(project_root))
@@ -32,7 +31,7 @@ root.attributes('-topmost', True) # Attempt to force the window to the front
 # We set initialdir to a likely location to save the user time, but they can browse anywhere.
 file_path_string = filedialog.askopenfilename(
     title="Select the Analysis Results Dataset",
-    initialdir=project_root / 'data/processed', 
+    initialdir=project_root / 'data/processed/input_analyzed', 
     filetypes=[("GeoPackage Files", "*.gpkg"), ("All Files", "*.*")]
 )
 
@@ -61,8 +60,8 @@ log.setLevel(logging.ERROR)
 # Initialize the app
 viz_results = agcap_explorer(
     settles_gdf_analyzed, 
-    default_column='Fish Cooling Potential ALL Markets',
-    figure_title="AgCAP results"
+    default_column=DEFAULT_COLUMN,
+    figure_title=FIGURE_TITLE
 )
 
 # Schedule the browser to open a few seconds AFTER the app starts

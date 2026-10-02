@@ -1,6 +1,6 @@
 # ❄️AgCAP: Agricultural Cold Chain Analysis & Prioritization Tool 
 
-**Use case of Madagascar**
+**Use case of Nigeria**
 
 
 ## 🌟 Why AgCAP?
@@ -62,7 +62,7 @@ You need the following installed:
     2. Right-click -> Open in Terminal
     3. Run the command ```conda activate agcapenv``` to activate the environment
     4. Run the command ```python visual_app_launcher.py``` to run the app
-    5. When a prompt opens up, select the pre-compiled settlement data, which by default should be `data/processed/settles_gdf_MDG_analyzed.gpkg`
+    5. When a prompt opens up, select the analyzed settlement data, located by default in `data/processed/input_analyzed/` (`settlements_analyzed_*.gpkg`)
 
 - It is also possible to launch the platform from within the notebook`visual_app_launcher.ipynb`. This gives you the possibility to perform some data analysis, calculate custom composite indices, etc. before performing the multi-criteria site selection within the platform. 
 
