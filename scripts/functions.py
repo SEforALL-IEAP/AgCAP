@@ -103,35 +103,52 @@ def get_admin_name(clusters, admin, admin_col_name):
     print(datetime.now())
     return clusters
 
-def run_zonal_stats_clipped(polygons_gdf, raster_path, stats=['mean'], col_prefix=None, fill_na=None):
+def run_zonal_stats_clipped(polygons_gdf, raster_path, stats=['mean'], col_prefix=None, fill_na=None, tile_size_px=1000):
     """
-    Calculates zonal statistics against a large raster by pre-clipping the raster data 
-    into a small NumPy array, preventing MemoryErrors.
+    Calculates zonal statistics against a large raster without loading it whole.
+    Polygons are grouped into spatial tiles (~tile_size_px pixels per side) and, for each tile,
+    only the raster window covering that tile's polygons is read into memory.
     """
     output_gdf = polygons_gdf.copy()
     if isinstance(stats, str):
         stats = [stats]
-        
+
     with rasterio.open(raster_path) as src:
         raster_crs = src.crs
         raster_nodata = src.nodata
-        
+
         if polygons_gdf.crs != raster_crs:
             working_gdf = polygons_gdf.to_crs(raster_crs)
         else:
             working_gdf = polygons_gdf.copy()
-            
-        clip_bounds = working_gdf.total_bounds
-        print('Calculating raster window and reading only relevant data...')
-        window = from_bounds(*clip_bounds, transform=src.transform)
-        data = src.read(1, window=window)
-        new_affine = src.window_transform(window)
-        print(f'Data array shape read: {data.shape}')
-        
-    print('Running zonal statistics on the clipped array...')
-    stats_generator = gen_zonal_stats(working_gdf, data, affine=new_affine, stats=stats, all_touched=True, nodata=raster_nodata)
-    results = list(stats_generator)
-    
+        working_gdf = working_gdf.reset_index(drop=True)
+
+        # Assign each polygon to a tile based on its bounding-box centre
+        bounds = working_gdf.geometry.bounds
+        tile_w = tile_size_px * src.res[0]
+        tile_h = tile_size_px * src.res[1]
+        tile_key = (np.floor((bounds['minx'] + bounds['maxx']) / 2 / tile_w).astype(np.int64).astype(str) + '_' +
+                    np.floor((bounds['miny'] + bounds['maxy']) / 2 / tile_h).astype(np.int64).astype(str))
+        full_window = rasterio.windows.Window(0, 0, src.width, src.height)
+
+        print(f'Running zonal statistics in {tile_key.nunique()} raster tiles...')
+        results = [{} for _ in range(len(working_gdf))]
+        for _, idx in working_gdf.groupby(tile_key).indices.items():
+            tb = bounds.iloc[idx]
+            window = from_bounds(tb['minx'].min(), tb['miny'].min(), tb['maxx'].max(), tb['maxy'].max(), transform=src.transform)
+            # Snap outward to whole pixels (with a 1-pixel margin) so the window stays aligned to the raster grid
+            window = rasterio.windows.Window(np.floor(window.col_off) - 1, np.floor(window.row_off) - 1,
+                                             np.ceil(window.width) + 3, np.ceil(window.height) + 3)
+            try:
+                window = window.intersection(full_window)
+            except rasterio.errors.WindowError:
+                continue  # Tile falls outside the raster: leave results empty (NaN)
+            data = src.read(1, window=window)
+            tile_results = gen_zonal_stats(working_gdf.geometry.iloc[idx], data, affine=src.window_transform(window),
+                                           stats=stats, all_touched=True, nodata=raster_nodata)
+            for i, res in zip(idx, tile_results):
+                results[i] = res
+
     for stat in stats:
         new_col_name = col_prefix if len(stats) == 1 and col_prefix else f'{col_prefix}_{stat}'
         default_value = fill_na if fill_na is not None else np.nan
@@ -338,22 +355,16 @@ def createVoronoi_3(admin, settlements, crs_projected, crs, boundary_point_spaci
     else:
         print('Skipping settlement simplification.')
         
-    points_list = []
-    total_vertices = 0
-    for idx, row in settles_gdf_prj.iterrows():
-        polygon_uid = row['id']
-        geometry = row.geometry
-        polygons = [geometry] if geometry.geom_type == 'Polygon' else geometry.geoms
-        for polygon in polygons:
-            exterior_coords = np.array(polygon.exterior.coords)
-            total_vertices += len(exterior_coords)
-            for coord in exterior_coords:
-                points_list.append({'id': idx, 'uid': polygon_uid, 'geometry': Point(coord)})
-            if total_vertices % 100 == 0:
-                print(f'Processed {total_vertices} perimeter vertices so far...')
-                
+    # Exterior-ring vertices of every (multi)polygon part, in row/part/vertex order (vectorized to limit memory)
+    parts, part_row = shapely.get_parts(settles_gdf_prj.geometry.values, return_index=True)
+    coords, coord_part = shapely.get_coordinates(shapely.get_exterior_ring(parts), return_index=True)
+    coord_row = part_row[coord_part]
+    total_vertices = len(coords)
+
     print(f'Total perimeter vertices extracted from settlements: {total_vertices}')
-    points_df = gpd.GeoDataFrame(points_list, crs=crs_projected)
+    points_df = gpd.GeoDataFrame({'id': settles_gdf_prj.index.values[coord_row],
+                                  'uid': settles_gdf_prj['id'].values[coord_row]},
+                                 geometry=gpd.points_from_xy(coords[:, 0], coords[:, 1]), crs=crs_projected)
     
     print('Perimeter vertices generated, starting Voronoi polygon creation...')
     x = points_df.geometry.x.values
@@ -365,13 +376,12 @@ def createVoronoi_3(admin, settlements, crs_projected, crs, boundary_point_spaci
     vor = Voronoi(all_coords)
     print('Voronoi diagram vertices and ridges computed, constructing polygons...')
     
-    lines = []
-    for i, line_indices in enumerate(vor.ridge_vertices):
-        if -1 not in line_indices:
-            lines.append(shapely.geometry.LineString(vor.vertices[line_indices]))
-        if i % 100 == 0 and i > 0:
-            print(f'Processed {i} Voronoi ridges out of {len(vor.ridge_vertices)}')
-            
+    # In 2D every ridge has two vertices; skip ridges that extend to infinity (-1)
+    ridges = np.asarray(vor.ridge_vertices)
+    ridges = ridges[(ridges != -1).all(axis=1)]
+    lines = shapely.linestrings(vor.vertices[ridges])
+    print(f'Built {len(lines)} finite Voronoi ridges out of {len(vor.ridge_vertices)}')
+
     polys = shapely.ops.polygonize(lines)
     voronois = gpd.GeoDataFrame(geometry=gpd.GeoSeries(polys), crs=crs_projected)
     print('Voronoi polygons constructed.')
