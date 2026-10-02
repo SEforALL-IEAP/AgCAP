@@ -12,7 +12,7 @@ Up to 40% of perishable harvested products are estimated to be lost to spoilage 
 - Cold chains support rural economies and value chain development, reducing post-harvest losses, improving livelihoods, and ensuring food security and climate resilience.
 
 **Core Challenges:**
-- Estimating agricultural cooling demand is difficult due to limited data.
+- Estimating agricultural cooling potential is difficult due to limited data.
 - Identifying suitable sites for cold rooms is complex, as it depends on multiple factors: agricultural productivity, market access, commercial viability, power availability, climate, and more.
 - Projects in the most needy communities are often less bankable.
 
@@ -69,7 +69,7 @@ You need the following installed:
 The notebook lets you launch the app within the notebook itself or in a browser tab for a better experience.
 
 The settlements data dictionary can be found here:
-[View Data Dictionary](docs/settlements_data_dictionary.csv)
+[View Data Dictionary](docs/settlements_data_dictionary_MDG.xlsx)
 
 ---
 
@@ -147,11 +147,11 @@ The settlements data dictionary can be found here:
    a. Public AgCAP platform for available countries—ideal for general users without modeling needs.  
    b. Local Jupyter notebooks or app launcher—for full control over data, assumptions, and privacy.
 
-2. **Visualize settlement data** with color codes by attributes like demand indices to spot patterns and differences intuitively.
+2. **Visualize settlement data** with color codes by attributes like cooling potential indices to spot patterns and differences intuitively.
 
 3. **Filter the map** using multiple attributes. Apply filters to display only sites that meet your specified conditions. Combined with custom color scales, this helps identify the most suitable sites for specific applications. Common filters include:  
    a. **Production activities in the village:** Select sites with high farming activity, fishing activity, or a combination of both.  
-   b. **Potential cooling demand indices:** Based on production volumes and market accessibility.  
+   b. **Cooling potential indices (PHCPI/FCPI):** Based on production volumes and market accessibility.  
    c. **Crop production:** Target sites with high output of specific perishable crops.  
    d. **Demographics:** Exclude very small villages or those with low population density; also exclude large cities.  
    e. **Geography:** Focus on specific regions, districts, communes, or other administrative areas.  
@@ -164,7 +164,7 @@ The settlements data dictionary can be found here:
 
 4. **Optionally import contextual geospatial datasets**—like census data, value chain production, roads, facilities, site assessments, or potential sites—to aid agricultural cold chain planning decisions.
 
-5. **Rank the settlements** by the composite indicator that best defines the suitability under the chosen case study, typically one of the cooling demand indices.
+5. **Rank the settlements** by the composite indicator that best defines the suitability under the chosen case study, typically one of the cooling potential indices.
 
 6. **Use the interactive table** to see the attributes of the filtered settlements, and use the dedicated columns to assign a score for shortlisting and annotations. These files could then also be re-imported into the platform as additional layers (see point 4).
 
