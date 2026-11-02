@@ -57,51 +57,14 @@ print(f'\n ✅ Target dataset selected: {settles_gdf_analyzed_path}\n')
 
 settles_gdf_analyzed = gpd.read_file(settles_gdf_analyzed_path)
 
-# --- Language selection ---
-
-def select_language():
-    options = [('en', 'English'), ('pt', 'Português')]
-    print("\n Select language / Selecione o idioma:")
-    for i, (_, name) in enumerate(options, 1):
-        print(f"   {i}) {name}")
-    while True:
-        raw = input("\n Your choice (press Enter for English): ").strip()
-        if not raw:
-            return 'en'
-        try:
-            idx = int(raw)
-            if 1 <= idx <= len(options):
-                return options[idx - 1][0]
-        except ValueError:
-            pass
-        print(" Please enter 1 or 2.")
-
-lang = select_language()
-print(f'\n Language selected: {lang}\n')
-
-# Function to open the browser
-def open_browser():
-    # Use 127.0.0.1 or localhost
-    webbrowser.open_new("http://127.0.0.1:8057")
-
 # Disable the loggers (too many logs)
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-# Initialize the app
-viz_results = agcap_explorer(
-    settles_gdf_analyzed,
-    default_column='Fish Cooling Potential ALL Markets',
-    figure_title="AgCAP results",
-    lang=lang,
-)
+# Language shown first (it can also be switched inside the platform)
+lang = select_language()
 
-# Schedule the browser to open a few seconds AFTER the app starts
-Timer(0.5, open_browser).start()
-
-# Run the app
-# Note: jupyter_mode='tab' is ignored when running as a standalone script, 
-# but we leave it here for compatibility.
+# Run the platform with all its languages side by side; it opens in the web browser
 print("\n 🚀 Starting Server...")
-print('\n Press CTRL+C to quit\n')
-viz_results.run(port=8057)
+run_platform(settles_gdf_analyzed, port=8057, lang=lang,
+             default_column='Fish Cooling Potential ALL Markets', figure_title="AgCAP results")

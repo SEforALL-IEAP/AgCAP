@@ -88,11 +88,11 @@ AgCAP_project_folder
 ![Platform](assets/images/platformMoz.png)
 
 - If you want to use the pre-compiled results:
-    1. Navigate to the `visualization_platform` directory
-    2. Right-click -> Open in Terminal
-    3. Run the command ```conda activate agcapenv``` to activate the environment
-    4. Run the command ```python visual_app_launcher.py``` to run the app
-    5. When a prompt opens up, select the pre-compiled settlement data, which by default should be `data/processed/settles_gdf_MDG_analyzed.gpkg`
+    1. Open a Terminal in the project root (the `AgCAP` folder)
+    2. Run the command ```conda activate agcapenv``` to activate the environment
+    3. Run the command ```python visual_app_launcher.py``` to run the app
+    4. When a prompt opens up, select the analyzed settlement data, located by default in `data/processed/input_analyzed/` (`settlements_analyzed_*.gpkg`)
+    5. Choose the language shown first (English or Portuguese); it can also be switched inside the platform
 
 - It is also possible to launch the platform from within the notebook`visual_app_launcher.ipynb`. This gives you the possibility to perform some data analysis, calculate custom composite indices, etc. before performing the multi-criteria site selection within the platform. 
 

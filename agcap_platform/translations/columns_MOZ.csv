@@ -1,11 +1,10 @@
-﻿en,fr,pt
+en,fr,pt
 fid,fid,fid
 id,id,id
 Country,Pays,País
-Region,Région,Região
+Province,Province,Província
 District,District,Distrito
-Postos,Postos,Postos
-Postos_INE,Postos_INE,Postos_INE
+Posto,Posto,Posto
 Urbanization Status,Statut d'urbanisation,Estado de Urbanização
 Cluster Area (from IEP),Zone de grappe (de IEP),Área de Cluster (do IEP)
 Cluster Area in km2,Zone de grappe en km2,Área de Cluster em km2
@@ -24,7 +23,7 @@ Electrification status nightlights,Statut d'électrification (lumières nocturne
 Electrification status (IEP study),Statut d'électrification (étude IEP),Estado de eletrificação (estudo IEP)
 Least-cost electrification mode (IEP results),Mode d'électrification au moindre coût (résultats IEP),Modo de eletrificação de menor custo (resultados IEP)
 Relative Wealth Index,Indice de richesse relative,Índice de Riqueza Relativa
-Percentage of food-insecure people,Pourcentage de personnes en insécurité alimentaire,Percentagem de pessoas em insegurança alimentar
+Fraction of food-insecure people,Fraction de personnes en insécurité alimentaire,Fração de pessoas em insegurança alimentar
 Livelihoods,Moyens de subsistance,Meios de subsistência
 Conflict fatalities nearby,Victimes de conflits à proximité,Vítimas de conflitos próximas
 Cyclone hazard (1 in 100 years wind speed),Risque de cyclone (vitesse du vent 1 sur 100 ans),Risco de ciclone (velocidade do vento 1 em 100 anos)
@@ -61,9 +60,9 @@ Cassava production,Production de Manioc,Produção de Mandioca
 Cashew Nut production,Production de Noix de cajou,Produção de Castanha de Caju
 Citrus production,Production d'Agrumes,Produção de Citrinos
 Cotton production,Production de Coton,Produção de Algodão
-Maiz production,Production de Maïs,Produção de Milho
-Other Roots production,Production d'Autres Tubercules,Produção de Outras Raízes
-Other Tropical Fruit production,Production d'Autres Fruits Tropicaux,Produção de Outras Frutas Tropicais
+Maize production,Production de Maïs,Produção de Milho
+Other Roots & Tubers production,Production d'Autres Tubercules et Racines,Produção de Outras Raízes e Tubérculos
+Tropical Fruit production,Production de Fruits Tropicaux,Produção de Frutas Tropicais
 Plantain production,Production de Banane plantain,Produção de Banana-da-terra
 Potato production,Production de Pomme de Terre,Produção de Batata
 Rice production,Production de Riz,Produção de Arroz
@@ -74,9 +73,7 @@ Temperate Fruit production,Production de Fruits Tempérés,Produção de Frutas 
 Tobacco production,Production de Tabac,Produção de Tabaco
 Vegetables production,Production de Légumes,Produção de Hortaliças
 Tomato production,Production de Tomate,Produção de Tomate
-Fishing Activity (Marine),Activité de pêche (Marine),Atividade de pesca (Marinha)
-Fishing Activity (Inland),Activité de pêche (Continentale),Atividade de pesca (Continental)
-Fishing Activity (Highest type),Activité de pêche (Type prédominant),Atividade de pesca (Tipo predominante)
+Fishing Activity (marine + inland),Activité de pêche (marine + continentale),Atividade de pesca (marinha + continental)
 Fishing type,Type de pêche,Tipo de pesca
 Fish Cooling Potential Export Market,Potentiel Refroid. Pêche Marché Export,Potencial Refrigeração Pesca Mercado Exportação
 Fish Cooling Potential National Market,Potentiel Refroid. Pêche Marché National,Potencial Refrigeração Pesca Mercado Nacional
@@ -84,9 +81,32 @@ Fish Cooling Potential Fresh Markets,Potentiel Refroid. Pêche Marchés Frais,Po
 Fish Cooling Potential ALL Markets,Potentiel Refroid. Pêche TOUS Marchés,Potencial Refrigeração Pesca TODOS Mercados
 Fish Cooling Potential ALL Markets - class,Potentiel Refroid. Pêche TOUS Marchés - classe,Potencial Refrigeração Pesca TODOS Mercados - classe
 Cooling_potential,Potentiel de refroidissement,Potencial de Refrigeração
-PUE_potential,Potentiel PUE,Potencial PUE
+Combined_PUE_potential,Potentiel PUE Combiné,Potencial PUE Combinado
 geometry,geometry,geometry
 Irrigation: months with no need (rainfed),Irrigation : mois sans besoin (pluvial),Irrigação: meses sem necessidade (de sequeiro)
 Irrigation: months with (moderate + critical) need,Irrigation : mois avec besoin (modéré + critique),Irrigação: meses com necessidade (moderada + crítica)
 Irrigation: months with (critical) need,Irrigation : mois avec besoin (critique) ,Irrigação: meses com necessidade (crítica)
 Irrigation: months with (moderate) need,Irrigation : mois avec besoin (modéré),Irrigação: meses com necessidade (moderada)
+Localidade,Localidade,Localidade
+Agricultural Fields (avg ha.),Champs Agricoles (ha moy.),Campos Agrícolas (ha méd.)
+Cash Crop Production (t/y),Production de Cultures de Rente (t/an),Produção de Culturas de Rendimento (t/ano)
+Perishable_Crop Production (t/y),Production de Cultures Périssables (t/an),Produção de Culturas Perecíveis (t/ano)
+Staple_Crop Production (t/y),Production de Cultures de Base (t/an),Produção de Culturas Básicas (t/ano)
+Ground_Survey,Enquête de Terrain,Levantamento de Campo
+Fishing Activity (Marine),Activité de pêche (Marine),Atividade de pesca (Marinha)
+Fishing Activity (Inland),Activité de pêche (Continentale),Atividade de pesca (Continental)
+Fishing Activity (Highest type),Activité de pêche (Type prédominant),Atividade de pesca (Tipo predominante)
+Irrigation_potential,Potentiel d'irrigation,Potencial de Irrigação
+Irrigation: months with (critical) need - class,Irrigation : mois avec besoin (critique) - classe,Irrigação: meses com necessidade (crítica) - classe
+Irrigation: months with (moderate + critical) need - class,Irrigation : mois avec besoin (modéré + critique) - classe,Irrigação: meses com necessidade (moderada + crítica) - classe
+Export Market Accessibility - class,Accessibilité au marché d'exportation - classe,Acessibilidade ao mercado de exportação - classe
+National Market Accessibility - class,Accessibilité au marché national - classe,Acessibilidade ao mercado nacional - classe
+Fresh Markets Accessibility - class,Accessibilité aux marchés frais - classe,Acessibilidade aos mercados frescos - classe
+Region,Région,Região
+Postos,Postos,Postos
+Postos_INE,Postos_INE,Postos_INE
+Percentage of food-insecure people,Pourcentage de personnes en insécurité alimentaire,Percentagem de pessoas em insegurança alimentar
+Maiz production,Production de Maïs,Produção de Milho
+Other Roots production,Production d'Autres Tubercules,Produção de Outras Raízes
+Other Tropical Fruit production,Production d'Autres Fruits Tropicaux,Produção de Outras Frutas Tropicais
+PUE_potential,Potentiel PUE,Potencial PUE

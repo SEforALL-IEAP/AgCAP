@@ -1,12 +1,16 @@
-﻿key,en,fr,pt
-landing.title,AgCAP Tool,Outil AgCAP,Ferramenta AgCAP
+key,en,fr,pt
+landing.title,AgCAP Insights Platform,Plateforme AgCAP Insights,Plataforma AgCAP Insights
 landing.subtitle,Agricultural Cold Chain Analysis & Prioritization Tool,Outil d'Analyse et de Priorisation de la Chaîne du Froid Agricole,Ferramenta de Análise e Priorização da Cadeia de Frio Agrícola
 landing.country_prompt,Select a country to launch the platform,Sélectionnez un pays pour lancer la plateforme,Selecione um país para iniciar a plataforma
 landing.country.madagascar,Madagascar,Madagascar,Madagáscar
 landing.country.mozambique,Mozambique,Mozambique,Moçambique
-landing.country_desc.madagascar,Settlements analysis and cooling potential assessment.,Analyse des établissements et évaluation du potentiel de refroidissement.,Análise de assentamentos e avaliação do potencial de resfriamento.
+landing.country.nigeria,Nigeria,Nigéria,Nigéria
+landing.country_desc.madagascar,Settlements analysis and cooling demand assessment.,Analyse des établissements et évaluation de la demande de refroidissement.,Análise de assentamentos e avaliação da demanda de resfriamento.
 landing.country_desc.mozambique,Settlements analysis and cooling potential assessment.,Analyse des établissements et évaluation du potentiel de refroidissement.,Análise de assentamentos e avaliação do potencial de resfriamento.
+landing.country_desc.nigeria,Settlements analysis and cooling demand assessment.,Analyse des établissements et évaluation de la demande de refroidissement.,Análise de assentamentos e avaliação da demanda de resfriamento.
 landing.button.launch,Launch,Lancer,Iniciar
+landing.github_link,Open source code on GitHub,Code source ouvert sur GitHub,Código fonte aberto no GitHub
+landing.methodology_link,Methodology,Méthodologie,Metodologia
 login.title,Login,Connexion,Login
 login.username_label,Username,Nom d'utilisateur,Nome de usuário
 login.password_label,Password,Mot de passe,Senha
@@ -25,7 +29,12 @@ tabs.layers,Layers,Couches,Camadas
 tabs.filters_primary,Filters (Primary),Filtres (Principal),Filtros (Primários)
 tabs.analysis,Analysis,Analyse,Análise
 basemap.title,Basemap,Fond de Carte,Mapa Base
-basemap.token_placeholder,Paste Mapbox Token (Optional),Coller le jeton Mapbox (Optionnel),Colar Token Mapbox (Opcional)
+basemap.streets,Streets,Rues,Ruas
+basemap.light,Light,Clair,Claro
+basemap.voyager,Voyager,Voyager,Voyager
+basemap.dark,Dark,Sombre,Escuro
+basemap.satellite,Satellite,Satellite,Satélite
+basemap.hybrid,Hybrid,Hybride,Híbrido
 layers.add_layer,+ Add Layer (CSV/GeoJSON/ZipShp/FGB/GPKG),+ Ajouter une Couche (CSV/GeoJSON/ZipShp/FGB/GPKG),+ Adicionar Camada (CSV/GeoJSON/ZipShp/FGB/GPKG)
 filters.filter_by,Filter By,Filtrer par,Filtrar Por
 analysis.analyze_label,Analyze:,Analyser:,Analisar:
@@ -37,8 +46,10 @@ analysis.section.electrification,Electrification,Électrification,Eletrificaçã
 analysis.section.economic,"Economic, Livelihoods, and Risks","Économie, Moyens de Subsistance et Risques","Economia, Meios de Vida e Riscos"
 analysis.section.geography,Physical Geography & Climate,Géographie Physique et Climat,Geografia Física e Clima
 analysis.section.market,Market Accessibility,Accessibilité aux Marchés,Acessibilidade ao Mercado
+analysis.section.ag_demand,Agricultural Cooling Demand,Demande en Refroidissement Agricole,Demanda de Resfriamento Agrícola
 analysis.section.ag_potential,Agricultural Cooling Potential,Potentiel de Refroidissement Agricole,Potencial de Resfriamento Agrícola
 analysis.section.ag_production,Agriculture Production,Production Agricole,Produção Agrícola
+analysis.section.fish_demand,Fishing Cooling Demand,Demande en Refroidissement pour la Pêche,Demanda de Resfriamento Pesqueiro
 analysis.section.fish_potential,Fishing Cooling Potential,Potentiel de Refroidissement pour la Pêche,Potencial de Resfriamento Pesqueiro
 analysis.placeholder,Charts for {section} will appear here.,Les graphiques pour {section} apparaîtront ici.,Gráficos para {section} aparecerão aqui.
 table.data_button,Data,Données,Dados
@@ -57,18 +68,12 @@ layer_settings.size,Size,Taille,Tamanho
 layer_settings.opacity,Opacity,Opacité,Opacidade
 layer_settings.single_color,Single Color,Couleur Unique,Cor Única
 spider_charts.total_production,Total perishable agriculture production (t/y) {value},Production agricole périssable totale (t/an) {value},Produção agrícola perecível total (t/a) {value}
+spider_charts.ag_demand,Ag Demand,Demande Agri.,Demanda Agrícola
 spider_charts.ag_potential,Ag Potential,Potentiel Agri.,Potencial Agrícola
+spider_charts.fish_demand,Fish Demand,Demande Pêche,Demanda de Peixe
 spider_charts.fish_potential,Fish Potential,Potentiel Pêche,Potencial de Peixe
 spider_charts.production,Production,Production,Produção
 branding.subtitle,Sustainable Energy for All,Sustainable Energy for All,Energia Sustentável para Todos
-basemap.openstreetmap,OpenStreetMap,OpenStreetMap,OpenStreetMap
-basemap.carto_positron,Carto Positron,Carto Positron,Carto Positron
-basemap.carto_dark,Carto Dark Matter,Carto Dark Matter,Carto Dark Matter
-basemap.stamen_terrain,Stamen Terrain,Stamen Terrain,Stamen Terrain
-basemap.satellite,Satellite (Mapbox Token Req.),Satellite (Jeton Mapbox Req.),Satélite (Requer Token Mapbox)
-basemap.satellite_streets,Satellite Streets (Mapbox Token Req.),Satellite Streets (Jeton Mapbox Req.),Ruas de Satélite (Requer Token Mapbox)
-basemap.light,Light (Mapbox Token Req.),Light (Jeton Mapbox Req.),Claro (Requer Token Mapbox)
-basemap.dark,Dark (Mapbox Token Req.),Dark (Jeton Mapbox Req.),Escuro (Requer Token Mapbox)
 table.close,Close,Fermer,Fechar
 table.total,Total,Total,Total
 table.no_layer,No Layer Selected,Aucune Couche Sélectionnée,Nenhuma Camada Selecionada
@@ -113,7 +118,8 @@ analysis.geography.avg_temp,Avg Temperature,Température moy.,Temperatura méd.
 analysis.geography.avg_precip,Avg Precipitation,Précipitation moy.,Précipitation méd.
 analysis.geography.avg_solar,Avg Solar PV,PV solaire moy.,PV solar méd.
 analysis.geography.climate_title,Climate Class Distribution,Distribution des classes climatiques,Distribuição de classes climáticas
-analysis.geography.cooling_solar_title,Cooling Potential vs Solar PV (bubble = population),Potentiel froid vs PV solaire (bulle = population),Potencial de frio vs PV solar (bolha = população)
+analysis.geography.cooling_solar_title,Cooling Demand vs Solar PV (bubble = population),Demande froid vs PV solaire (bulle = population),Demanda de frio vs PV solar (bolha = população)
+analysis.geography.cooling_potential_solar_title,Cooling Potential vs Solar PV (bubble = population),Potentiel froid vs PV solaire (bulle = population),Potencial de frio vs PV solar (bolha = população)
 analysis.market.avg_cities,Avg Time to Cities,Temps villes moy.,Tempo p/ cidades méd.
 analysis.market.avg_airports,Avg Time to Airports,Temps aéroports moy.,Tempo p/ aeroportos méd.
 analysis.market.avg_ports,Avg Time to Ports,Temps ports moy.,Tempo p/ portos méd.
@@ -122,9 +128,13 @@ analysis.market.scatter_title,Export vs National Accessibility (bubble = farming
 table.reset_filters,Reset Filters,Réinitialiser Filtres,Redefinir Filtros
 table.export,Export,Exporter,Exportar
 sidebar.back,Back to Countries,Retour aux Pays,Voltar aos Países
-info.title,About AgCAP Platform,À Propos de la Plateforme AgCAP,Sobre a Plataforma AgCAP
+info.title,About AgCAP Insights Platform,À Propos de la Plateforme AgCAP Insights,Sobre a Plataforma AgCAP Insights
 info.description,"The Agricultural Cold Chain Analysis & Prioritization (AgCAP) tool helps identify settlements where cold chain investments can have the greatest impact on food security and economic development.","L'outil d'Analyse et de Priorisation de la Chaîne du Froid Agricole (AgCAP) aide à identifier les établissements où les investissements dans la chaîne du froid peuvent avoir le plus grand impact sur la sécurité alimentaire et le développement économique.","A ferramenta de Análise e Priorização da Cadeia de Frio Agrícola (AgCAP) ajuda a identificar assentamentos onde investimentos em cadeia de frio podem ter o maior impacto na segurança alimentar e no desenvolvimento econômico."
 info.model_source,AgCAP Model Source Code,Code Source du Modèle AgCAP,Código Fonte do Modelo AgCAP
+info.download_title,Download settlement data,Télécharger les données des établissements,Descarregar dados dos assentamentos
+info.download_polygons,Polygons (GeoPackage),Polygones (GeoPackage),Polígonos (GeoPackage)
+info.download_points,Points (GeoPackage),Points (GeoPackage),Pontos (GeoPackage)
+info.download_details,Dataset details and release notes,Détails et notes de version du jeu de données,Detalhes e notas de versão do conjunto de dados
 info.close,Close,Fermer,Fechar
 toolbar.lasso_select,Lasso Select [S + Click],Sélection au Lasso [S + Clic],Seleção Laço [S + Clique]
 toolbar.box_select,Box Select [R + Click],Sélection Rectangle [R + Clic],Seleção Retângulo [R + Clique]
@@ -134,6 +144,7 @@ toolbar.zoom_out,Zoom Out,Zoom Arrière,Reduzir
 toolbar.screenshot,Screenshot,Capture d'Écran,Captura de Tela
 toolbar.reset_view,Reset View,Réinitialiser la Vue,Redefinir Vista
 toolbar.reset_platform,Reset Platform,Réinitialiser la Plateforme,Redefinir Plataforma
+toolbar.deselect_all,Deselect All,Tout Désélectionner,Desmarcar Tudo
 composite.title,Composite Index Builder,Constructeur d'Indice Composite,Construtor de Índice Composto
 composite.saved_indices,Saved Indices,Indices Sauvegardés,Índices Salvos
 composite.create_new,Create New Index,Créer un Nouvel Indice,Criar Novo Índice
@@ -163,3 +174,5 @@ filters.p95_active,Showing 95th percentile range — click to show full range,Af
 filters.p95_inactive,Clip histogram to 95th percentile for skewed data,Limiter l'histogramme au 95e percentile pour les données asymétriques,Recortar histograma no percentil 95 para dados assimétricos
 filters.reset_active,Reset filter to full range,Réinitialiser le filtre à la plage complète,Redefinir filtro para o intervalo completo
 filters.reset_inactive,Filter is at full range,Le filtre est à la plage complète,Filtro está no intervalo completo
+filters.include_missing,Include {n} empty values,Inclure {n} valeurs vides,Incluir {n} valores vazios
+filters.missing_option,(empty) [{n}],(vide) [{n}],(vazio) [{n}]
