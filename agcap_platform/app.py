@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 import base64
+import gzip
 import io
 import uuid
 import json
@@ -26,41 +27,46 @@ scripts_dir = Path(__file__).parent
 if str(scripts_dir) not in sys.path:
     sys.path.insert(0, str(scripts_dir))
 
-from translation_loader import t, get_column_translation, get_spider_label_patterns, COLUMN_TRANSLATIONS, load_column_translations
+from translation_loader import t, get_column_translation, get_spider_label_patterns, COLUMN_TRANSLATIONS, load_column_translations, normalize_legacy_columns
+from basemap_switcher import basemap_switcher, register_basemap_callbacks
+from filter_utils import MISSING, missing_mask, filter_mask, apply_filters
 
-# =============================================================================
-# PARAMETERS — edit this section to adapt to a different country or dataset
-# =============================================================================
-
-COUNTRY_CODE  = 'MDG'
+# --- COUNTRY CONFIGURATION ---
+# Modify these parameters for each country deployment
+COUNTRY_CODE = 'MDG'
+TRANSLATIONS_FILE = 'columns_MDG.csv'
 FIGURE_TITLE  = 'AgCAP Madagascar'
-DEFAULT_COLUMN = 'Fish Cooling Potential ALL Markets'
-
-# Folder that create_app() / standalone run searches for the input dataset.
-# Notebooks ignore this — they load data themselves and pass it to agcap_explorer().
-# create_app() picks the most recently modified .gpkg in this folder automatically.
+# Folder holding the analyzed dataset(s) exported by core_analysis_engine.ipynb;
+# create_app() loads the most recently modified .gpkg in it
 DATA_FOLDER = 'data/processed/input_analyzed'
 
-# Column-tooltip dictionary file inside docs/ (xlsx with EN + FR sheets, or omit to disable tooltips).
-# Change this filename when adapting for a different country.
+# Data dictionary (in docs/) used for column tooltips
 DICTIONARY_FILE = 'settlements_data_dictionary_MDG.xlsx'
+
+# Languages of the platform (run_platform() serves them side by side: /en/, /fr/, ...)
+LANGUAGES = ['en', 'fr']
+LANGUAGE_NAMES = {'en': 'English', 'fr': 'Français', 'pt': 'Português'}
+DEFAULT_COLUMN = 'Fish Cooling Potential ALL Markets'
 
 # Map defaults
 DEFAULT_MAP_CENTER = {'lat': -18.76, 'lon': 46.86}
+
+# Placeholder for analysis charts until their first update (transparent, no axes),
+# so they don't flash Plotly's default white template when the pane first opens
+BLANK_FIG = {'layout': {'paper_bgcolor': 'rgba(0,0,0,0)', 'plot_bgcolor': 'rgba(0,0,0,0)',
+                        'xaxis': {'visible': False}, 'yaxis': {'visible': False}}}
 DEFAULT_MAP_ZOOM   = 5
 
-# Administrative hierarchy for population sunburst (top → bottom).
-# Must match the exact column names in the dataset.
+# Administrative hierarchy for population sunburst (top → bottom)
 ADMIN_LEVELS = ['Region', 'District', 'Commune']
 
-# Column used for population totals in the sunburst chart
+# Column used for population totals and sunburst values
 POPULATION_COLUMN = 'Population'
 
 # Column used for electrification sunburst
 ELECTRIFICATION_COLUMN = 'Electrification status (IEP study)'
 
-# Analysis chart column names (English — translations applied at display time).
-# All names must exist as columns in the dataset.
+# Analysis chart column names (English — translations applied at display time)
 AG_METRICS = [
     'Ag Cooling Potential Export Market', 'Ag Cooling Potential National Market',
     'Ag Cooling Potential Fresh Markets', 'Ag Cooling Potential ALL Markets'
@@ -76,8 +82,6 @@ PROD_METRICS = [
     'Sweet Potato production', 'Temperate Fruit production',
     'Tomato production'
 ]
-
-# =============================================================================
 
 # Load country-specific column translations
 load_column_translations(COUNTRY_CODE)
@@ -95,7 +99,6 @@ try:
 except Exception:
     pass
 
-MAPBOX_TOKEN = os.environ.get("MAPBOX_TOKEN", "")
 external_scripts = [
     {'src': 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'}
 ]
@@ -363,11 +366,11 @@ class DataManager:
     def get_session_state(self, session_id):
         if not session_id: return {}
         user_data = self.get_user_data(session_id)
-        
+
         serialized_layers = {}
         for lid, df in user_data['layers'].items():
             serialized_layers[lid] = df.to_json(orient='split', date_format='iso')
-            
+
         # Include polygon GeoJSON (stored as dicts, serialize to JSON strings)
         serialized_geojson = {}
         for lid, gj in user_data.get('geojson', {}).items():
@@ -399,7 +402,21 @@ class DataManager:
             return False, f"Error loading session: {str(e)}"
 
     def create_composite_index(self, session_id, layer_id, column_name, selected_columns, weights, method='minmax', negative_effects=None):
-        """Create a composite index column based on weighted combination of numeric columns."""
+        """
+        Create a composite index column based on weighted combination of numeric columns.
+
+        Args:
+            session_id: User session identifier
+            layer_id: Layer to add the column to
+            column_name: Name for the new composite column
+            selected_columns: List of column names to combine
+            weights: Dict mapping column names to weight values (0-100)
+            method: Normalization method ('minmax' or 'zscore')
+            negative_effects: Dict mapping column names to bool (True = reverse effect)
+
+        Returns:
+            True if successful, False otherwise
+        """
         if not session_id or not layer_id:
             return False
 
@@ -411,23 +428,28 @@ class DataManager:
         if negative_effects is None:
             negative_effects = {}
 
+        # Validate inputs
         if not selected_columns or not weights:
             return False
 
+        # Normalize weights to sum to 1
         total_weight = sum(weights.values())
         if total_weight == 0:
             return False
         normalized_weights = {col: w / total_weight for col, w in weights.items()}
 
+        # Initialize composite column
         composite = pd.Series(0.0, index=df.index)
 
         for col in selected_columns:
             if col not in df.columns:
                 continue
 
+            # Get column data and handle NaN values
             data = df[col].copy()
             data = data.fillna(data.mean() if not data.isna().all() else 0)
 
+            # Normalize based on method
             if method == 'minmax':
                 col_min = data.min()
                 col_max = data.max()
@@ -435,29 +457,35 @@ class DataManager:
                     normalized = (data - col_min) / (col_max - col_min)
                 else:
                     normalized = pd.Series(0.5, index=data.index)
-            else:
+            else:  # zscore
                 col_mean = data.mean()
                 col_std = data.std()
                 if col_std > 0:
                     normalized = (data - col_mean) / col_std
+                    # Clip outliers to +/- 3 std dev and rescale to 0-1
                     normalized = normalized.clip(-3, 3)
-                    normalized = (normalized + 3) / 6
+                    normalized = (normalized + 3) / 6  # Scale to 0-1
                 else:
                     normalized = pd.Series(0.5, index=data.index)
 
+            # Apply negative effect (reverse: high value = low score)
             if negative_effects.get(col, False):
                 normalized = 1.0 - normalized
 
+            # Apply weight and add to composite
             composite += normalized * normalized_weights[col]
 
+        # Scale final result to 0-100 for readability
         df[column_name] = (composite * 100).round(2)
 
+        # Update metadata to include the new column
         meta = next((m for m in user_data['metadata'] if m['id'] == layer_id), None)
         if meta:
-            if column_name not in meta.get('columns', []):
+            if column_name not in meta['columns']:
                 meta['columns'].append(column_name)
-            if column_name not in meta.get('numeric_columns', []):
+            if column_name not in meta['numeric_columns']:
                 meta['numeric_columns'].append(column_name)
+            # Regenerate column mapping
             meta['column_map'] = self._generate_column_mapping(df.columns)
 
         return True
@@ -478,12 +506,14 @@ class DataManager:
         if index_name not in indices:
             return False
 
+        # Remove the column from the DataFrame
         idx_info = indices[index_name]
         layer_id = idx_info.get('layer_id')
         if layer_id and layer_id in user_data['layers']:
             df = user_data['layers'][layer_id]
             if index_name in df.columns:
                 df.drop(columns=[index_name], inplace=True)
+            # Update metadata
             meta = next((m for m in user_data['metadata'] if m['id'] == layer_id), None)
             if meta:
                 if index_name in meta.get('columns', []):
@@ -521,7 +551,7 @@ def _session_cleanup_loop(dm_instance, max_age_hours=1, interval=600):
                      if (now - ts).total_seconds() / 3600 > max_age_hours]
             for sid in stale:
                 dm_instance.cleanup_session(sid)
-                print(f"[Session Cleanup {COUNTRY_CODE}] Removed stale session: {sid[:8]}...")
+                print(f"[Session Cleanup] Removed stale session: {sid[:8]}...")
             if stale:
                 gc.collect()
 
@@ -531,13 +561,13 @@ def _session_cleanup_loop(dm_instance, max_age_hours=1, interval=600):
                     import platform
                     if platform.system() == 'Linux':
                         ctypes.CDLL('libc.so.6').malloc_trim(0)
-                        print(f"[Session Cleanup {COUNTRY_CODE}] Forced OS memory release (malloc_trim)")
+                        print(f"[Session Cleanup] Forced OS memory release (malloc_trim)")
                 except:
                     pass  # Silently fail on Windows/Mac or if library unavailable
 
-                print(f"[Session Cleanup {COUNTRY_CODE}] Cleaned {len(stale)} sessions.")
+                print(f"[Session Cleanup] Cleaned {len(stale)} sessions.")
         except Exception as e:
-            print(f"[Session Cleanup {COUNTRY_CODE}] Error: {e}")
+            print(f"[Session Cleanup] Error: {e}")
 
 _cleanup_thread = threading.Thread(target=_session_cleanup_loop, args=(dm,), daemon=True)
 _cleanup_thread.start()
@@ -550,9 +580,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         settles_gdf: GeoDataFrame with settlement data
         default_column: Default column to display
         figure_title: Title for the application
-        lang: Language code ('en' or 'fr')
+        lang: Language code ('en', 'fr', or 'pt')
     """
-    # --- Guard: Only process data on FIRST call (prevent redundant processing for en/pt) ---
+    # --- Guard: Only process data on FIRST call (prevent redundant processing for en/fr/pt) ---
     if dm.default_context is None:
         # --- Initial Data Processing ---
         if settles_gdf.crs is not None and settles_gdf.crs.to_string() != "EPSG:4326":
@@ -562,9 +592,10 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 print(f"Warning: Could not convert CRS. Error: {e}")
 
         df_main = settles_gdf.copy()
-        centroids = df_main.geometry.centroid
-        df_main['lat'] = centroids.y
-        df_main['lon'] = centroids.x
+        # Settlements may be polygons (pipeline export) or points (deployment file)
+        _centroids = df_main.geometry.centroid
+        df_main['lat'] = _centroids.y
+        df_main['lon'] = _centroids.x
         df_main = df_main.drop(columns='geometry')
 
         # Initialize Custom Columns
@@ -577,6 +608,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         numeric_columns = []
         categorical_columns = []
         for col in df_main.columns:
+            if col in ['Notes', 'Score']:
+                continue
+
             if pd.api.types.is_numeric_dtype(df_main[col]):
                 df_main[col] = pd.to_numeric(df_main[col], errors='coerce').astype('float64')
                 numeric_columns.append(col)
@@ -592,9 +626,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         # Instead, save this setup as the "Default Context" in the DataManager.
         # A callback will trigger later to copy this into the user's session.
         dm.set_default_context(df_main, "Settlements", default_column)
-        print(f"[AgCAP Explorer {COUNTRY_CODE}] Initial data processing completed (lang={lang})")
+        print(f"[AgCAP Explorer] Initial data processing completed (lang={lang})")
 
-    # Get the already-processed data (runs on both calls - en/pt)
+    # Get the already-processed data (runs on all 3 calls - en/fr/pt)
     df_main = dm.default_context['df']
     numeric_columns = [c for c in df_main.columns if pd.api.types.is_numeric_dtype(df_main[c])]
     categorical_columns = [c for c in df_main.columns if c not in numeric_columns]
@@ -606,18 +640,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         'Plasma', 'Hot', 'Blackbody', 'RdBu', 'Earth'
     ]
     
-    # Basemap Options
-    basemap_options = [
-        {'label': 'OpenStreetMap', 'value': 'open-street-map'},
-        {'label': 'Carto Positron', 'value': 'carto-positron'},
-        {'label': 'Carto Dark Matter', 'value': 'carto-darkmatter'},
-        {'label': 'Carto Voyager', 'value': 'carto-voyager'},
-        {'label': 'Satellite', 'value': 'satellite'},
-        {'label': 'Satellite Streets', 'value': 'satellite-streets'},
-        {'label': 'Light', 'value': 'light'},
-        {'label': 'Dark', 'value': 'dark'},
-    ]
     
+
     # 1. DEFINE THE CORRECT ASSETS PATH
     # Get the folder where this script lives (/scripts)
     current_script_folder = os.path.dirname(os.path.abspath(__file__))
@@ -625,20 +649,19 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
     project_root = os.path.dirname(current_script_folder)
     # Point to the 'assets' folder in the root
     assets_path = os.path.join(project_root, 'assets')
-
+    
     app = dash.Dash(__name__, external_stylesheets=external_stylesheets, external_scripts=external_scripts, assets_folder=assets_path, requests_pathname_prefix=url_base_pathname)
+
+    # Language-switch links derived from url_base_pathname: on the website (/mdg/en/) they lead
+    # to /mdg/<lang>/, with run_platform() (/en/) to /<lang>/; a single app at / stays on /
+    _base = url_base_pathname.rstrip('/')
+    _lang_root = _base.rsplit('/', 1)[0]
+    _en_href = f'{_lang_root}/en/' if _base else '/'
+    _fr_href = f'{_lang_root}/fr/' if _base else '/'
     app.title = figure_title
 
     # Store language in app config for use in callbacks
     app.lang = lang
-
-    # Derive language-switch hrefs from url_base_pathname.
-    # For deployment (e.g. '/moz/en/'): _lang_root='/moz' → '/moz/en/', '/moz/pt/'
-    # For standalone/notebook ('/'): _lang_root='' → '/', '/'
-    _base = url_base_pathname.rstrip('/')
-    _lang_root = _base.rsplit('/', 1)[0] if '/' in _base else ''
-    _en_href = f'{_lang_root}/en/' if _lang_root else '/'
-    _fr_href = f'{_lang_root}/fr/' if _lang_root else '/'
 
     # --- Flask cleanup endpoint for session management ---
     from flask import request as flask_request
@@ -833,6 +856,11 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 #resize-handle:hover { background-color: var(--brand-purple); }
                 #resize-handle:hover::after { color: white; }
 
+                /* Right pane resize handles */
+                #right-pane-resize-left:hover { background-color: rgba(251, 184, 0, 0.3); }
+                #right-pane-resize-bottom:hover { background-color: rgba(251, 184, 0, 0.3); }
+                #right-pane-resize-corner:hover { background-color: rgba(251, 184, 0, 0.5); }
+
                 /* Custom Map Toolbar */
                 .toolbar-btn {
                     width: 30px; height: 30px; border: none; border-radius: 4px;
@@ -913,10 +941,23 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     display: none;
                 }
                 #global-loading-spinner.active { display: block; }
-
-                #right-pane-resize-left:hover { background-color: rgba(251, 184, 0, 0.3); }
-                #right-pane-resize-bottom:hover { background-color: rgba(251, 184, 0, 0.3); }
-                #right-pane-resize-corner:hover { background-color: rgba(251, 184, 0, 0.5); }
+                /* Analysis pane: small spinner next to the title + dimmed charts while they update */
+                #analysis-loading-spinner {
+                    position: absolute;
+                    top: 52px;
+                    right: 18px;
+                    z-index: 4;
+                    width: 16px; height: 16px;
+                    border: 3px solid rgba(251, 184, 0, 0.2);
+                    border-top-color: #FBB800;
+                    border-radius: 50%;
+                    animation: agcap-spin 0.8s linear infinite;
+                    pointer-events: none;
+                    display: none;
+                }
+                #analysis-loading-spinner.active { display: block; }
+                #right-pane-content { transition: opacity 0.15s ease; }
+                #right-pane-content.updating { opacity: 0.55; }
 
                 #legend-container {
                     background: rgba(44, 62, 80, 0.85);
@@ -1080,24 +1121,6 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                             return gd._fullLayout.dragmode || 'pan';
                         }
 
-                        // Middle-click pan: while middle button is held, force pan mode
-                        document.addEventListener('mousedown', function(e) {
-                            if (e.button !== 1) return;
-                            var mapEl = document.getElementById('map');
-                            if (!mapEl || !mapEl.contains(e.target)) return;
-                            e.preventDefault();
-                            var prev = getCurrentMode();
-                            setDragMode('pan');
-                            updateCursor('pan');
-                            function onUp(ev) {
-                                if (ev.button !== 1) return;
-                                setDragMode(prev);
-                                updateCursor(prev);
-                                document.removeEventListener('mouseup', onUp);
-                            }
-                            document.addEventListener('mouseup', onUp);
-                        });
-
                         // Update cursor follower text based on current drag mode
                         function updateCursor(mode) {
                             if (!follower) return;
@@ -1147,6 +1170,24 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                             }
                         });
 
+                        // Middle-click pan: while middle button held → pan, then restore
+                        document.addEventListener('mousedown', function(e) {
+                            if (e.button !== 1) return;
+                            var mapEl = document.getElementById('map');
+                            if (!mapEl || !mapEl.contains(e.target)) return;
+                            e.preventDefault();
+                            var prev = getCurrentMode();
+                            setDragMode('pan');
+                            updateCursor('pan');
+                            function onUp(ev) {
+                                if (ev.button !== 1) return;
+                                setDragMode(prev);
+                                updateCursor(prev);
+                                document.removeEventListener('mouseup', onUp);
+                            }
+                            document.addEventListener('mouseup', onUp);
+                        });
+
                         // Temporary tool keys: S=lasso, R=box select, P=pan
                         var tempKeyPrev = null; // {mode, toolId, key}
                         document.addEventListener('keydown', function(e) {
@@ -1178,23 +1219,42 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                         });
                     })();
 
-                    // --- Global loading spinner: intercept fetch to detect server callbacks ---
+                    // --- Loading indicators: intercept fetch to detect server callbacks ---
+                    // Analysis-pane charts show a small spinner inside the pane; other callbacks use the
+                    // global spinner, shown only if they take longer than 300 ms (avoids flicker).
                     (function() {
-                        var pending = 0;
+                        var pending = 0, chartPending = 0, showTimer = null;
                         var spinner = document.getElementById('global-loading-spinner');
+                        function paneLoading(on) {
+                            var s = document.getElementById('analysis-loading-spinner');
+                            var c = document.getElementById('right-pane-content');
+                            if (s) s.classList.toggle('active', on);
+                            if (c) c.classList.toggle('updating', on);
+                        }
                         var origFetch = window.fetch;
                         window.fetch = function() {
                             var url = (arguments[0] && arguments[0].url) || arguments[0] || '';
                             var isCallback = (typeof url === 'string' && url.indexOf('_dash-update-component') !== -1);
-                            if (isCallback) {
+                            var body = (arguments[1] && typeof arguments[1].body === 'string') ? arguments[1].body : '';
+                            var isChart = isCallback && (body.indexOf('spider-chart-ag.figure') !== -1 || body.indexOf('bubble-chart.figure') !== -1);
+                            if (isChart) {
+                                chartPending++;
+                                paneLoading(true);
+                            } else if (isCallback) {
                                 pending++;
-                                if (spinner) spinner.classList.add('active');
+                                if (!showTimer) showTimer = setTimeout(function() {
+                                    showTimer = null;
+                                    if (pending > 0 && spinner) spinner.classList.add('active');
+                                }, 300);
                             }
                             return origFetch.apply(this, arguments).finally(function() {
-                                if (isCallback) {
-                                    pending--;
-                                    if (pending <= 0) {
-                                        pending = 0;
+                                if (isChart) {
+                                    chartPending = Math.max(0, chartPending - 1);
+                                    if (chartPending === 0) paneLoading(false);
+                                } else if (isCallback) {
+                                    pending = Math.max(0, pending - 1);
+                                    if (pending === 0) {
+                                        if (showTimer) { clearTimeout(showTimer); showTimer = null; }
                                         if (spinner) spinner.classList.remove('active');
                                     }
                                 }
@@ -1214,7 +1274,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
     sidebar_items.append(
         html.A(
             html.Img(
-                src=app.get_asset_url('images/logo.png'),  # Use absolute path from web root
+                src=app.get_asset_url('images/logo.png'),
                 style={'width': '35px', 'display': 'block', 'margin': '0 auto'}
             ),
             href="https://www.seforall.org/",
@@ -1262,6 +1322,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                         title=t('toolbar.box_select', lang), className='toolbar-btn'),
             html.Button(html.I(className="fas fa-hand-paper"), id='tool-pan', n_clicks=0,
                         title=t('toolbar.pan', lang), className='toolbar-btn active-tool'),
+            html.Button(html.I(className="fas fa-times-circle"), id='tool-deselect', n_clicks=0,
+                        title=t('toolbar.deselect_all', lang), className='toolbar-btn'),
             html.Div(style={'width': '1px', 'height': '20px', 'backgroundColor': '#666', 'margin': '0 3px'}),
             html.Button(html.I(className="fas fa-search-plus"), id='tool-zoom-in', n_clicks=0,
                         title=t('toolbar.zoom_in', lang), className='toolbar-btn'),
@@ -1342,25 +1404,25 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         # Legend Container (Left side of map)
         html.Div(id='legend-container', style={'position': 'absolute', 'top': '60px', 'left': '15px', 'zIndex': 5, 'width': '220px', 'display': 'none'}),
 
+        # Basemap switcher (bottom-left of map)
+        basemap_switcher(lang, app, COUNTRY_CODE),
+
         # Scale bar (bottom centre of map)
         html.Div(id='map-scalebar', children=[
             html.Div(id='map-scalebar-label', children=''),
             html.Div(id='map-scalebar-bar'),
         ]),
 
-        # Bottom right logos (all files in assets/logos/{COUNTRY_CODE}/, sorted alphabetically)
+        # Bottom right logos (all files in assets/logos/MDG/, sorted alphabetically)
         html.Div(
             id='map-logos',
             children=[
                 html.Img(
-                    src=app.get_asset_url(f'logos/{COUNTRY_CODE}/{fname}'),
+                    src=app.get_asset_url(f'logos/MDG/{fname}'),
                     style={'height': '8vh', 'width': 'auto', 'display': 'block'}
                 )
                 for fname in sorted([
-                    f for f in (
-                        os.listdir(scripts_dir.parent / 'assets' / 'logos' / COUNTRY_CODE)
-                        if (scripts_dir.parent / 'assets' / 'logos' / COUNTRY_CODE).exists() else []
-                    )
+                    f for f in os.listdir(scripts_dir.parent / 'assets' / 'logos' / 'MDG')
                     if f.lower().endswith(('.png', '.svg', '.jpg', '.jpeg', '.webp'))
                 ])
             ],
@@ -1430,7 +1492,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         dcc.Store(id='layer-manager-trigger', data=0),
         dcc.Store(id='layer-data-content-trigger', data=0), # Only fires on Add/Delete
         dcc.Store(id='visible-layers-list', data=[]),       # Keeps track of what is visible
-        dcc.Store(id='map-view-store', data={'center': None, 'zoom': None}), 
+        dcc.Store(id='map-view-store', data={'center': None, 'zoom': None}),
         dcc.Store(id='save-status-store'),
         dcc.Store(id='user-session-id', storage_type='local'),
         dcc.Store(id='active-tool-store', data='pan'),
@@ -1442,6 +1504,10 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         dcc.Store(id='geo-clear-trigger', data=0),
         dcc.Store(id='default-map-view', data={'center': DEFAULT_MAP_CENTER, 'zoom': DEFAULT_MAP_ZOOM}),
         dcc.Store(id='pending-filter-values'),
+        dcc.Store(id='analysis-pane-open', data=False),  # charts only update while the pane is open
+        dcc.Store(id='analysis-dirty', data=True),  # inputs changed while the pane was closed
+        dcc.Store(id='analysis-refresh'),  # bumped on opening the pane when the charts are out of date
+        dcc.Store(id='filter-na-store', data={}),  # {column: True} where 'Include N empty values' is ticked
         dcc.Store(id='filter-log-scale-store', data={}),
         dcc.Store(id='filter-histogram-data', data={}),
         dcc.Download(id="download-session"),
@@ -1459,7 +1525,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 'zIndex': 9998,
             }),
             html.Div([
-                html.H3('Select Language / Escolha o idioma', style={'color': '#FBB800', 'marginBottom': '20px', 'fontSize': '18px'}),
+                html.H3('Select Language / Choisir la langue', style={'color': '#FBB800', 'marginBottom': '20px', 'fontSize': '18px'}),
                 html.Div([
                     html.A(
                         html.Div([
@@ -1539,6 +1605,21 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     href='https://github.com/SEforALL-IEAP/AgCAP', target='_blank',
                     style={'textDecoration': 'none', 'color': '#ecf0f1', 'display': 'block', 'marginBottom': '20px'}
                 ),
+                # Downloadable settlement datasets (GitHub release data-<CC> of the public AgCAP repo,
+                # published with tools/publish_datasets.py; links always point to the latest files)
+                html.Div([
+                    html.Div(t('info.download_title', lang), style={'color': '#FBB800', 'fontSize': '13px', 'fontWeight': 'bold', 'marginBottom': '8px'}),
+                    html.Div([
+                        html.A([html.I(className=icon, style={'marginRight': '8px'}), html.Span(t(key, lang))],
+                               href=f'https://github.com/SEforALL-IEAP/AgCAP/releases/download/data-{COUNTRY_CODE}/AgCAP_{COUNTRY_CODE}_settlements_{kind}.gpkg.zip',
+                               style={'padding': '7px 12px', 'backgroundColor': '#2e2e2e', 'border': '1px solid #583CA5', 'borderRadius': '5px',
+                                      'color': '#ecf0f1', 'textDecoration': 'none', 'fontSize': '12px', 'display': 'inline-flex', 'alignItems': 'center'})
+                        for kind, key, icon in [('polygons', 'info.download_polygons', 'fas fa-draw-polygon'),
+                                                ('points', 'info.download_points', 'fas fa-map-marker-alt')]
+                    ], style={'display': 'flex', 'gap': '8px', 'flexWrap': 'wrap', 'marginBottom': '6px'}),
+                    html.A(t('info.download_details', lang), href=f'https://github.com/SEforALL-IEAP/AgCAP/releases/tag/data-{COUNTRY_CODE}',
+                           target='_blank', style={'color': '#bbb', 'fontSize': '11px'}),
+                ], style={'marginBottom': '20px'}),
                 html.P([html.Span('Sustainable Energy for All', style={'fontWeight': 'bold'}), ' — ', html.A('seforall.org', href='https://www.seforall.org/', target='_blank', style={'color': '#FBB800'})], style={'color': '#bbb', 'fontSize': '11px', 'marginBottom': '15px'}),
                 html.Button(t('info.close', lang), id='close-info-modal', n_clicks=0, style={
                     'padding': '8px 20px', 'backgroundColor': '#555', 'color': '#ecf0f1',
@@ -1557,34 +1638,15 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         # 2. Left Pane
         html.Div(id="left-pane-container", children=[
             html.Div(id='left-pane', style={'width':'18vw','height':'100%','backgroundColor':'#44546A','color':'#ecf0f1','padding':'10px','boxSizing':'border-box','boxShadow':'inset -5px 0 10px -5px rgba(0,0,0,0.5)','overflowY':'auto'}, children=[
-
+                
                 html.Div([
-                    html.H2(figure_title, style={'color': '#FBB800', 'marginBottom': '0px', 'fontWeight':'700', 'letterSpacing':'1px', 'fontSize': '22px'}),
-                    html.H5(t('branding.subtitle', lang), style={'color': '#bdc3c7', 'marginTop': '5px', 'marginBottom': '0px', 'fontWeight': '300', 'fontSize':'12px', 'fontStyle':'italic', 'fontFamily': 'Mulish'})
+                    html.H2(figure_title, style={'color': '#FBB800', 'marginBottom': '0px', 'fontWeight':'700', 'letterSpacing':'1px', 'fontSize': '22px', 'textTransform': 'none'}),
+                    html.H5(t('branding.subtitle', lang), style={'color': '#bdc3c7', 'marginTop': '5px', 'marginBottom': '0px', 'fontWeight': '300', 'fontSize':'12px', 'fontStyle':'italic', 'fontFamily': 'Mulish', 'textTransform': 'none'})
                 ], style={'borderBottom': '1px solid #555555', 'paddingBottom': '15px', 'marginBottom': '15px', 'textAlign':'left'}),
 
                 # --- LAYERS TAB ---
                 html.Div(id='layers-content', style={'display': 'none'}, children=[
                     html.H3(t('tabs.layers', lang), style={'borderBottom':'1px solid #555555', 'paddingBottom':'5px', 'marginBottom': '10px', 'fontSize': '16px'}),
-
-                    # Basemap Settings
-                    html.Div([
-                        html.H4(t('basemap.title', lang), style={'color': '#ecf0f1', 'fontSize': '12px', 'marginBottom': '5px'}),
-                        dcc.Dropdown(
-                            id='basemap-dropdown',
-                            options=basemap_options,
-                            value='open-street-map',
-                            clearable=False,
-                            style={'width': '100%', 'marginBottom': '10px', 'color': '#333', 'fontSize': '11px'}
-                        ),
-                        dcc.Input(
-                            id='mapbox-token-input',
-                            type='password',
-                            value=MAPBOX_TOKEN,
-                            placeholder=t('basemap.token_placeholder', lang),
-                            style={'width': '100%', 'padding': '5px', 'borderRadius': '4px', 'border': '1px solid #555555', 'backgroundColor': '#555555', 'color': 'white', 'marginBottom': '10px', 'fontSize': '11px'}
-                        )
-                    ], style={'marginBottom': '10px', 'borderBottom': '1px dashed #555555', 'paddingBottom': '10px'}),
 
                     dcc.Upload(
                         id='upload-data',
@@ -1606,50 +1668,83 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
                 # --- COMPOSITE INDEX TAB ---
                 html.Div(id='composite-content', style={'display': 'none'}, children=[
-                    html.H3([html.I(className="fas fa-calculator", style={'marginRight':'8px'}), t('composite.title', lang)],
-                        style={'borderBottom':'1px solid #555555', 'paddingBottom':'5px', 'marginBottom':'15px', 'fontSize':'16px'}),
+                    html.H3([
+                        html.I(className="fas fa-calculator", style={'marginRight':'8px'}),
+                        t('composite.title', lang)
+                    ], style={'borderBottom':'1px solid #555555', 'paddingBottom':'5px', 'marginBottom':'15px', 'fontSize':'16px'}),
+
+                    # Saved Indices Manager
                     html.Div([
-                        html.H4([t('composite.saved_indices', lang), " ", html.I(className="fas fa-info-circle", id="manager-tooltip", style={'fontSize':'12px', 'color':'#bbb', 'cursor':'help'})],
-                            style={'fontSize':'12px', 'color':'#FBB800', 'marginBottom':'8px'}),
+                        html.H4([
+                            t('composite.saved_indices', lang), " ",
+                            html.I(className="fas fa-info-circle", id="manager-tooltip", style={'fontSize':'12px', 'color':'#bbb', 'cursor':'help'})
+                        ], style={'fontSize':'12px', 'color':'#FBB800', 'marginBottom':'8px'}),
                         dbc.Tooltip(t('composite.help_manager', lang), target="manager-tooltip", placement="right"),
                         html.Div(id='composite-manager-container', style={'marginBottom':'20px'})
                     ]),
+
                     html.Hr(style={'borderColor':'#555', 'margin':'10px 0'}),
-                    html.H4([t('composite.create_new', lang), " ", html.I(className="fas fa-info-circle", id="create-tooltip", style={'fontSize':'12px', 'color':'#bbb', 'cursor':'help'})],
-                        style={'fontSize':'12px', 'color':'#FBB800', 'marginBottom':'8px'}),
+
+                    # Create New Index
+                    html.H4([
+                        t('composite.create_new', lang), " ",
+                        html.I(className="fas fa-info-circle", id="create-tooltip", style={'fontSize':'12px', 'color':'#bbb', 'cursor':'help'})
+                    ], style={'fontSize':'12px', 'color':'#FBB800', 'marginBottom':'8px'}),
                     dbc.Tooltip(t('composite.help_create', lang), target="create-tooltip", placement="right"),
+
+                    # Index Name
                     html.Div([
-                        html.Label([t('composite.column_name', lang), " ", html.I(className="fas fa-question-circle", id="name-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})],
-                            style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'3px', 'fontWeight':'bold'}),
+                        html.Label([
+                            t('composite.column_name', lang), " ",
+                            html.I(className="fas fa-question-circle", id="name-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})
+                        ], style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'3px', 'fontWeight':'bold'}),
                         dbc.Tooltip(t('composite.help_name', lang), target="name-tooltip", placement="right"),
                         dcc.Input(id='composite-name-input', type='text', placeholder=t('composite.placeholder_name', lang), value='',
                                   style={'width':'100%', 'fontSize':'11px', 'padding':'4px', 'borderRadius':'4px', 'border':'1px solid #ccc'})
                     ], style={'marginBottom':'12px'}),
+
+                    # Target Layer
                     html.Div([
-                        html.Label([t('composite.target_layer', lang), " ", html.I(className="fas fa-question-circle", id="layer-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})],
-                            style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'3px', 'fontWeight':'bold'}),
+                        html.Label([
+                            t('composite.target_layer', lang), " ",
+                            html.I(className="fas fa-question-circle", id="layer-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})
+                        ], style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'3px', 'fontWeight':'bold'}),
                         dbc.Tooltip(t('composite.help_layer', lang), target="layer-tooltip", placement="right"),
                         dcc.Dropdown(id='composite-layer-dropdown', clearable=False, style={'fontSize':'11px', 'color':'#333'})
                     ], style={'marginBottom':'12px'}),
+
+                    # Attributes to Combine
                     html.Div([
-                        html.Label([t('composite.attributes', lang), " ", html.I(className="fas fa-question-circle", id="columns-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})],
-                            style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'3px', 'fontWeight':'bold'}),
+                        html.Label([
+                            t('composite.attributes', lang), " ",
+                            html.I(className="fas fa-question-circle", id="columns-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})
+                        ], style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'3px', 'fontWeight':'bold'}),
                         dbc.Tooltip(t('composite.help_columns', lang), target="columns-tooltip", placement="right"),
                         dcc.Dropdown(id='composite-columns-dropdown', multi=True, placeholder=t('composite.placeholder_attrs', lang), style={'fontSize':'11px', 'color':'#333'})
                     ], style={'marginBottom':'12px'}),
+
+                    # Standardization Method
                     html.Div([
-                        html.Label([t('composite.method', lang), " ", html.I(className="fas fa-question-circle", id="method-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})],
-                            style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'5px', 'fontWeight':'bold'}),
+                        html.Label([
+                            t('composite.method', lang), " ",
+                            html.I(className="fas fa-question-circle", id="method-tooltip", style={'fontSize':'10px', 'color':'#bbb', 'cursor':'help'})
+                        ], style={'fontSize':'10px', 'color':'#ecf0f1', 'marginBottom':'5px', 'fontWeight':'bold'}),
                         dbc.Tooltip(t('composite.help_method', lang), target="method-tooltip", placement="right"),
                         dcc.RadioItems(id='composite-normalization-method',
                             options=[{'label': t('composite.minmax', lang), 'value': 'minmax'}, {'label': t('composite.zscore', lang), 'value': 'zscore'}],
                             value='minmax', inline=False, style={'fontSize':'10px', 'color':'#ecf0f1'})
                     ], style={'marginBottom':'12px'}),
+
+                    # Weight Controls
                     html.Div(id='composite-weight-controls-container', style={'marginBottom':'8px'}),
+
+                    # Sum Validator
                     html.Div([
                         html.Span(t('composite.sum_label', lang), style={'fontSize':'10px', 'color':'#bbb', 'marginRight':'5px'}),
                         html.Span(id='composite-sum-display', children="0%", style={'fontSize':'11px', 'fontWeight':'bold', 'color':'#e74c3c'})
                     ], style={'marginBottom':'8px', 'textAlign':'center'}),
+
+                    # Buttons
                     html.Div([
                         html.Button([html.I(className="fas fa-undo", style={'marginRight':'5px'}), t('composite.reset', lang)],
                             id='composite-reset-weights-btn', n_clicks=0,
@@ -1658,6 +1753,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                             id='composite-calculate-btn', n_clicks=0,
                             style={'flex':'2', 'padding':'8px', 'backgroundColor':'#555', 'color':'#888', 'border':'none', 'borderRadius':'4px', 'cursor':'not-allowed', 'fontWeight':'bold', 'fontSize':'11px', 'fontFamily':'Barlow Condensed', 'letterSpacing':'1px'})
                     ], style={'display':'flex', 'marginBottom':'10px'}),
+
+                    # Status
                     html.Div(id='composite-status-message', style={'fontSize':'10px', 'padding':'8px', 'borderRadius':'4px', 'display':'none'})
                 ]),
 
@@ -1697,6 +1794,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 'position':'absolute', 'left':0, 'bottom':0, 'width':'12px',
                 'height':'12px', 'cursor':'nesw-resize', 'zIndex':3
             }),
+            # Chart update indicator (toggled by the fetch hook in index_string)
+            html.Div(id='analysis-loading-spinner'),
             # Content wrapper (scrollable)
             html.Div(id='right-pane-content', style={
                 'width':'100%', 'height':'100%', 'overflowY':'auto',
@@ -1734,20 +1833,23 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                 'textAlign': 'center', 'color': '#FBB800', 'fontWeight': 'bold',
                                 'fontSize': '12px', 'marginBottom': '4px', 'fontFamily': 'Barlow Condensed'
                             }),
-                            dcc.Graph(id='sunburst-population', config={'displayModeBar': False}, style={'height': '300px'})
+                            dcc.Graph(id='sunburst-population', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '300px'})
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
                         html.Summary(t('analysis.section.electrification', lang)),
                         html.Div([
-                            dcc.Graph(id='sunburst-electrification', config={'displayModeBar': False}, style={'height': '300px'})
+                            dcc.Graph(id='sunburst-electrification', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '300px'})
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
                         html.Summary(t('analysis.section.economic', lang)),
                         html.Div([
+                            # KPI row
                             html.Div(id='economic-kpi-row', style={'display':'flex', 'flexWrap':'wrap', 'gap':'4px', 'marginBottom':'8px'}),
-                            dcc.Graph(id='chart-livelihoods', config={'displayModeBar': False}, style={'height': '180px'}),
+                            # Livelihoods bar chart
+                            dcc.Graph(id='chart-livelihoods', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '180px'}),
+                            # Wealth vs Population Density scatter (click-to-map)
                             html.Div([
                                 html.Button('×', id='econ-clear-btn', title=t('analysis.bubble.clear_highlight', lang),
                                     style={'position':'absolute', 'top':'4px', 'right':'4px', 'zIndex':10,
@@ -1755,15 +1857,18 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                            'borderRadius':'50%', 'width':'20px', 'height':'20px', 'fontSize':'14px',
                                            'lineHeight':'18px', 'textAlign':'center', 'cursor':'pointer',
                                            'display':'none', 'padding':'0'}),
-                                dcc.Graph(id='chart-wealth-food', config={'displayModeBar': False, 'scrollZoom': False}, style={'height': '220px'}),
+                                dcc.Graph(id='chart-wealth-food', figure=BLANK_FIG, config={'displayModeBar': False, 'scrollZoom': False}, style={'height': '220px'}),
                             ], style={'position':'relative'}),
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
                         html.Summary(t('analysis.section.geography', lang)),
                         html.Div([
+                            # KPI row
                             html.Div(id='geography-kpi-row', style={'display':'flex', 'flexWrap':'wrap', 'gap':'4px', 'marginBottom':'8px'}),
-                            dcc.Graph(id='chart-climate-class', config={'displayModeBar': False}, style={'height': '180px'}),
+                            # Climate class distribution bar
+                            dcc.Graph(id='chart-climate-class', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '180px'}),
+                            # Cooling Degree Days vs Solar PV scatter (click-to-map)
                             html.Div([
                                 html.Button('×', id='geo-clear-btn', title=t('analysis.bubble.clear_highlight', lang),
                                     style={'position':'absolute', 'top':'4px', 'right':'4px', 'zIndex':10,
@@ -1771,21 +1876,23 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                            'borderRadius':'50%', 'width':'20px', 'height':'20px', 'fontSize':'14px',
                                            'lineHeight':'18px', 'textAlign':'center', 'cursor':'pointer',
                                            'display':'none', 'padding':'0'}),
-                                dcc.Graph(id='chart-cooling-solar', config={'displayModeBar': False, 'scrollZoom': False}, style={'height': '220px'}),
+                                dcc.Graph(id='chart-cooling-solar', figure=BLANK_FIG, config={'displayModeBar': False, 'scrollZoom': False}, style={'height': '220px'}),
                             ], style={'position':'relative'}),
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
                         html.Summary(t('analysis.section.market', lang)),
                         html.Div([
+                            # KPI row
                             html.Div(id='market-kpi-row', style={'display':'flex', 'flexWrap':'wrap', 'gap':'4px', 'marginBottom':'8px'}),
-                            dcc.Graph(id='chart-market-indices', config={'displayModeBar': False}, style={'height': '160px'}),
+                            # Composite indices comparison bar
+                            dcc.Graph(id='chart-market-indices', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '160px'}),
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
                         html.Summary(t('analysis.section.ag_potential', lang)),
                         html.Div([
-                            dcc.Graph(id='spider-chart-ag', config={'displayModeBar': False}, style={'height': '200px'})
+                            dcc.Graph(id='spider-chart-ag', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '200px'})
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
@@ -1795,13 +1902,13 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                 'textAlign': 'center', 'color': '#FBB800', 'fontWeight': 'bold',
                                 'fontSize': '12px', 'marginBottom': '4px', 'fontFamily': 'Barlow Condensed'
                             }),
-                            dcc.Graph(id='spider-chart-prod', config={'displayModeBar': False}, style={'height': '200px'})
+                            dcc.Graph(id='spider-chart-prod', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '200px'})
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
                         html.Summary(t('analysis.section.fish_potential', lang)),
                         html.Div([
-                            dcc.Graph(id='spider-chart-fish', config={'displayModeBar': False}, style={'height': '200px'})
+                            dcc.Graph(id='spider-chart-fish', figure=BLANK_FIG, config={'displayModeBar': False}, style={'height': '200px'})
                         ], className="analysis-content-inner")
                     ], open=True),
                     html.Details([
@@ -1834,11 +1941,10 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                            'borderRadius':'50%', 'width':'20px', 'height':'20px', 'fontSize':'14px',
                                            'lineHeight':'18px', 'textAlign':'center', 'cursor':'pointer',
                                            'display':'none', 'padding':'0'}),
-                                dcc.Graph(id='bubble-chart', config={'displayModeBar': True, 'scrollZoom': True}, style={'height': '350px'})
+                                dcc.Graph(id='bubble-chart', figure=BLANK_FIG, config={'displayModeBar': True, 'scrollZoom': True}, style={'height': '350px'})
                             ], style={'position':'relative'})
                         ], className="analysis-content-inner")
                     ], open=True),
-
                 ])
             ])
         ], style={
@@ -1964,14 +2070,144 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
-    # Right analysis pane toggle
+    # --- NEW: SEND DATA TO CLIENT STORE (OPTIMIZED) ---
+    # --- NEW: SEND ALL VISIBLE LAYERS TO CLIENT STORE ---
+    # --- NEW: SEND ALL VISIBLE LAYERS TO CLIENT STORE ---
+    @app.callback(
+        Output('client-layer-data', 'data'),
+        Input('layer-data-content-trigger', 'data'), 
+        State('user-session-id', 'data'),
+        prevent_initial_call=True
+    )
+    def populate_client_store(trigger, session_id):
+        if not session_id: return None
+
+        user_meta = dm.get_metadata(session_id)
+        user_data = dm.get_user_data(session_id)
+
+        layers_payload = {}
+        for layer in user_meta:
+            lid = layer['id']
+            df = dm.get_df(session_id, lid)
+            if df is not None:
+                dff = df.reset_index()
+                data_dict = dff.to_dict('split')
+                data_dict['name'] = layer['name']
+                data_dict['layer_type'] = layer.get('layer_type', 'point')
+                # For polygon layers, include GeoJSON geometry
+                if layer.get('layer_type') == 'polygon':
+                    geojson = user_data.get('geojson', {}).get(lid)
+                    if geojson:
+                        data_dict['geojson'] = geojson
+                layers_payload[lid] = data_dict
+
+        return layers_payload
+
+
+# --- CLIENTSIDE: HIDE LOADER WHEN MAP FIGURE IS POPULATED ---
+    app.clientside_callback(
+        """
+        function(figure) {
+            // 1. Check if figure exists
+            // 2. Check if figure has 'data' (traces) or a specific layout indicating it is ready
+            if (figure && figure.data && figure.data.length > 0) {
+                
+                // OPTIONAL: Add a small delay (e.g., 1000ms) to allow the map tiles 
+                // to visually paint before lifting the curtain.
+                // You can remove the setTimeout wrapper if you want it instant.
+                
+                setTimeout(function() {
+                    const loader = document.getElementById('initial-loader');
+                    if(loader) {
+                        loader.style.opacity = '0';
+                        loader.style.transition = 'opacity 1s ease-out';
+                        
+                        // Actually remove it from layout after fade
+                        setTimeout(function() {
+                            loader.style.display = 'none';
+                        }, 1000);
+                    }
+                }, 1000); // <--- Adjust this 1000 (1 second) to your liking
+                
+                return window.dash_clientside.no_update;
+            }
+            return window.dash_clientside.no_update;
+        }
+        """,
+        Output('initial-loader', 'children'), # Dummy output just to make the callback valid
+        Input('map', 'figure') # <--- THE KEY: We wait for the map data
+    )
+
+
+    # --- 2. CLIENTSIDE UI ACTIONS (Instant Response) ---
+    # Tab switching for left pane (layers/filters only)
+    app.clientside_callback(
+        """
+        function(btn1, btn2, btn3) {
+            const ctx = dash_clientside.callback_context;
+            const active = {'color': '#FBB800', 'boxShadow': '0 0 8px rgba(251, 184, 0, 0.4)'};
+            const inactive = {'color': '#bdc3c7', 'boxShadow': 'none'};
+            const show = {'display': 'block'};
+            const hide = {'display': 'none'};
+
+            if (!ctx.triggered.length) {
+                return [hide, show, hide, inactive, active, inactive];
+            }
+
+            const bid = ctx.triggered[0].prop_id.split('.')[0];
+
+            if (bid === 'layers-btn') {
+                return [show, hide, hide, active, inactive, inactive];
+            } else if (bid === 'composite-btn') {
+                return [hide, hide, show, inactive, inactive, active];
+            } else {
+                return [hide, show, hide, inactive, active, inactive];
+            }
+        }
+        """,
+        [Output('layers-content', 'style'), Output('filters-content', 'style'), Output('composite-content', 'style'),
+         Output('layers-btn', 'style'), Output('filters-btn', 'style'), Output('composite-btn', 'style')],
+        [Input('layers-btn', 'n_clicks'), Input('filters-btn', 'n_clicks'), Input('composite-btn', 'n_clicks')]
+    )
+
+    # Replaces 'toggle_layout' - left pane collapse/expand
     app.clientside_callback(
         """
         function(n) {
+            const collapsed = (n % 2 === 1);
+            const left_pos = collapsed ? '45px' : 'calc(45px + 18vw)';
+
+            var paneBottom = '0px';
+            if (!collapsed && window.__agcap_state && window.__agcap_state.tableIsOpen) {
+                var tp = document.getElementById('table-panel');
+                if (tp) paneBottom = tp.offsetHeight + 'px';
+            }
+
+            const pane = collapsed
+                ? {'display': 'none'}
+                : {'position':'fixed','top':0,'left':'45px','bottom':paneBottom,'zIndex':20};
+
+            return [
+                pane,
+                {'position':'fixed','top':'20px','left':left_pos,'zIndex':40,'width':'20px','height':'30px','backgroundColor':'#555555','color':'white','border':'none','borderTopRightRadius':'4px','borderBottomRightRadius':'4px','cursor':'pointer','fontSize':'18px','padding':'0','lineHeight':'28px'},
+                {'position':'fixed', 'top':0, 'left':left_pos, 'right':0, 'height':'100vh', 'zIndex':1, 'transition': 'left 0.3s ease'},
+                collapsed ? '›' : '‹'
+            ];
+        }
+        """,
+        [Output("left-pane-container", "style"), Output("collapse-btn", "style"), Output("map-container", "style"), Output("collapse-btn", "children")],
+        Input("collapse-btn", "n_clicks")
+    )
+
+    # Right analysis pane toggle
+    app.clientside_callback(
+        """
+        function(n, dirty) {
             const defaultBtn = {'position':'fixed','top':'8px','right':'20px','zIndex':25,'padding':'8px 16px','borderRadius':'20px','border':'none','backgroundColor':'#44546A','color':'white','fontSize':'14px','cursor':'pointer','fontFamily':'Barlow Condensed','letterSpacing':'1px','boxShadow':'0 4px 6px rgba(0,0,0,0.3)','transition':'all 0.2s ease'};
             const activeBtn = Object.assign({}, defaultBtn, {'backgroundColor':'#FBB800','color':'#333'});
 
-            if (!n) return [{'display':'none'}, defaultBtn];
+            const noUp = window.dash_clientside.no_update;
+            if (!n) return [{'display':'none'}, defaultBtn, false, noUp, noUp];
 
             var st = window.__agcap_state || { tableHeight: '25vh', rightPaneWidth: '22vw', tableIsOpen: false };
             const isOpen = (n % 2 === 1);
@@ -1986,11 +2222,36 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 ? {'position':'fixed','top':0,'right':0,'width':st.rightPaneWidth,'bottom':paneBottom,'backgroundColor':'#44546A','color':'#ecf0f1','boxShadow':'inset 5px 0 10px -5px rgba(0,0,0,0.5)','zIndex':20,'display':'block'}
                 : {'display':'none'};
 
-            return [paneStyle, isOpen ? activeBtn : defaultBtn];
+            const refresh = isOpen && dirty;
+            return [paneStyle, isOpen ? activeBtn : defaultBtn, isOpen,
+                    refresh ? Date.now() : noUp, refresh ? false : noUp];
         }
         """,
-        [Output("right-pane-container", "style"), Output("analysis-toggle-btn", "style")],
-        Input("analysis-toggle-btn", "n_clicks")
+        [Output("right-pane-container", "style"), Output("analysis-toggle-btn", "style"),
+         Output('analysis-pane-open', 'data'),
+         Output('analysis-refresh', 'data'),
+         Output('analysis-dirty', 'data')],
+        Input("analysis-toggle-btn", "n_clicks"),
+        State('analysis-dirty', 'data')
+    )
+
+    # Mark the analysis charts out of date when their inputs change while the pane is closed
+    app.clientside_callback(
+        """
+        function() {
+            const paneOpen = arguments[arguments.length - 1];
+            return paneOpen ? window.dash_clientside.no_update : true;
+        }
+        """,
+        Output('analysis-dirty', 'data', allow_duplicate=True),
+        Input({'type': 'histogram-slider', 'column': ALL}, 'value'),
+        Input({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
+        Input('filter-na-store', 'data'),
+        Input('current-selection-store', 'data'),
+        Input('layer-manager-trigger', 'data'),
+        Input('table-layer-dropdown', 'value'),
+        State('analysis-pane-open', 'data'),
+        prevent_initial_call=True
     )
 
     # --- TOOLBAR CALLBACKS ---
@@ -2129,6 +2390,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
+    # Basemap switcher: open/close panel, sync toggle preview
+    register_basemap_callbacks(app, COUNTRY_CODE)
+
     # Scale bar: update on every pan/zoom via relayoutData
     app.clientside_callback(
         """
@@ -2190,6 +2454,22 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Output('toolbar-dummy-output', 'children', allow_duplicate=True),
         Input('tool-reset-view', 'n_clicks'),
         State('default-map-view', 'data'),
+        prevent_initial_call=True
+    )
+
+    # Deselect all: presses the table's Deselect button (always in the layout, also when the
+    # table is closed), so the selection is cleared exactly as from the table
+    app.clientside_callback(
+        """
+        function(n_clicks, deselectClicks) {
+            if (!n_clicks) return window.dash_clientside.no_update;
+            window.dash_clientside.set_props('deselect-all-btn', {n_clicks: (deselectClicks || 0) + 1});
+            return window.dash_clientside.no_update;
+        }
+        """,
+        Output('toolbar-dummy-output', 'children', allow_duplicate=True),
+        Input('tool-deselect', 'n_clicks'),
+        State('deselect-all-btn', 'n_clicks'),
         prevent_initial_call=True
     )
 
@@ -2266,26 +2546,18 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'histogram-slider', 'column': ALL}, 'id'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
+        State('filter-na-store', 'data'),
         State('user-session-id', 'data'),
         prevent_initial_call=True
     )
-    def export_table_csv(n_clicks, selected_uuids, active_layer_id, slider_vals, slider_ids, cat_vals, cat_ids, session_id):
+    def export_table_csv(n_clicks, selected_uuids, active_layer_id, slider_vals, slider_ids, cat_vals, cat_ids, na_store, session_id):
         if not n_clicks or not session_id or not active_layer_id:
             return dash.no_update
         df = dm.get_df(session_id, active_layer_id)
         if df is None:
             return dash.no_update
         # Apply filters
-        if slider_ids and slider_vals:
-            for value, sid in zip(slider_vals, slider_ids):
-                col = sid['column']
-                if col in df.columns and value:
-                    df = df[(df[col] >= value[0]) & (df[col] <= value[1])]
-        if cat_ids and cat_vals:
-            for values, cid in zip(cat_vals, cat_ids):
-                col = cid['column']
-                if col in df.columns and values:
-                    df = df[df[col].isin(values)]
+        df = apply_filters(df, slider_vals, slider_ids, cat_vals, cat_ids, na_store)
         # Apply selection
         is_select_all = (selected_uuids and len(selected_uuids) == 1 and selected_uuids[0] == 'ALL')
         if not is_select_all:
@@ -2308,137 +2580,6 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         return dict(content=buf.getvalue(), filename='agcap_export.csv')
 
     # Reset table column filters
-    # --- NEW: SEND DATA TO CLIENT STORE (OPTIMIZED) ---
-    # --- NEW: SEND ALL VISIBLE LAYERS TO CLIENT STORE ---
-    # --- NEW: SEND ALL VISIBLE LAYERS TO CLIENT STORE ---
-    @app.callback(
-        Output('client-layer-data', 'data'),
-        Input('layer-data-content-trigger', 'data'), 
-        State('user-session-id', 'data'),
-        prevent_initial_call=True
-    )
-    def populate_client_store(trigger, session_id):
-        if not session_id: return None
-
-        user_meta = dm.get_metadata(session_id)
-        user_data = dm.get_user_data(session_id)
-
-        layers_payload = {}
-        for layer in user_meta:
-            lid = layer['id']
-            df = dm.get_df(session_id, lid)
-            if df is not None:
-                dff = df.reset_index()
-                data_dict = dff.to_dict('split')
-                data_dict['name'] = layer['name']
-                data_dict['layer_type'] = layer.get('layer_type', 'point')
-                # For polygon layers, include GeoJSON geometry
-                if layer.get('layer_type') == 'polygon':
-                    geojson = user_data.get('geojson', {}).get(lid)
-                    if geojson:
-                        data_dict['geojson'] = geojson
-                layers_payload[lid] = data_dict
-
-        return layers_payload
-
-
-# --- CLIENTSIDE: HIDE LOADER WHEN MAP FIGURE IS POPULATED ---
-    app.clientside_callback(
-        """
-        function(figure) {
-            // 1. Check if figure exists
-            // 2. Check if figure has 'data' (traces) or a specific layout indicating it is ready
-            if (figure && figure.data && figure.data.length > 0) {
-                
-                // OPTIONAL: Add a small delay (e.g., 1000ms) to allow the map tiles 
-                // to visually paint before lifting the curtain.
-                // You can remove the setTimeout wrapper if you want it instant.
-                
-                setTimeout(function() {
-                    const loader = document.getElementById('initial-loader');
-                    if(loader) {
-                        loader.style.opacity = '0';
-                        loader.style.transition = 'opacity 1s ease-out';
-                        
-                        // Actually remove it from layout after fade
-                        setTimeout(function() {
-                            loader.style.display = 'none';
-                        }, 1000);
-                    }
-                }, 1000); // <--- Adjust this 1000 (1 second) to your liking
-                
-                return window.dash_clientside.no_update;
-            }
-            return window.dash_clientside.no_update;
-        }
-        """,
-        Output('initial-loader', 'children'), # Dummy output just to make the callback valid
-        Input('map', 'figure') # <--- THE KEY: We wait for the map data
-    )
-
-
-    # --- 2. CLIENTSIDE UI ACTIONS (Instant Response) ---
-    # Replaces 'switch_tab' (Layers / Filters / Composite — 3 tabs)
-    app.clientside_callback(
-        """
-        function(btn1, btn2, btn3) {
-            const ctx = dash_clientside.callback_context;
-            const active = {'color': '#FBB800', 'boxShadow': '0 0 8px rgba(251, 184, 0, 0.4)'};
-            const inactive = {'color': '#bdc3c7', 'boxShadow': 'none'};
-            const show = {'display': 'block'};
-            const hide = {'display': 'none'};
-
-            if (!ctx.triggered.length) {
-                return [hide, show, hide, inactive, active, inactive];
-            }
-
-            const bid = ctx.triggered[0].prop_id.split('.')[0];
-
-            if (bid === 'layers-btn') {
-                return [show, hide, hide, active, inactive, inactive];
-            } else if (bid === 'composite-btn') {
-                return [hide, hide, show, inactive, inactive, active];
-            } else {
-                return [hide, show, hide, inactive, active, inactive];
-            }
-        }
-        """,
-        [Output('layers-content', 'style'), Output('filters-content', 'style'), Output('composite-content', 'style'),
-         Output('layers-btn', 'style'), Output('filters-btn', 'style'), Output('composite-btn', 'style')],
-        [Input('layers-btn', 'n_clicks'), Input('filters-btn', 'n_clicks'), Input('composite-btn', 'n_clicks')]
-    )
-
-    # Replaces 'toggle_layout'
-    app.clientside_callback(
-        """
-        function(n) {
-            const collapsed = (n % 2 === 1);
-            const left_pos = collapsed ? '45px' : 'calc(45px + 18vw)';
-
-            var paneBottom = '0px';
-            if (!collapsed && window.__agcap_state && window.__agcap_state.tableIsOpen) {
-                var tp = document.getElementById('table-panel');
-                if (tp) paneBottom = tp.offsetHeight + 'px';
-            }
-
-            const pane = collapsed
-                ? {'display': 'none'}
-                : {'position':'fixed','top':0,'left':'45px','bottom':paneBottom,'zIndex':20};
-
-            return [
-                pane,
-                {'position':'fixed','top':'20px','left':left_pos,'zIndex':40,'width':'20px','height':'30px','backgroundColor':'#555555','color':'white','border':'none','borderTopRightRadius':'4px','borderBottomRightRadius':'4px','cursor':'pointer','fontSize':'18px','padding':'0','lineHeight':'28px'},
-                {'position':'fixed', 'top':0, 'left':left_pos, 'right':0, 'height':'100vh', 'zIndex':1, 'transition': 'left 0.3s ease'},
-                {'position':'fixed', 'bottom':0, 'left':'45px', 'right':0, 'zIndex': 50, 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'flex-end', 'alignItems': 'center', 'pointerEvents': 'none'},
-                collapsed ? '›' : '‹'
-            ];
-        }
-        """,
-        [Output("left-pane-container", "style"), Output("collapse-btn", "style"), Output("map-container", "style"), Output("table-ui-wrapper", "style"), Output("collapse-btn", "children")],
-        Input("collapse-btn", "n_clicks")
-    )
-
-    # Replaces 'toggle_table'
     # Replaces 'toggle_table' - FIXED (Animation Removed to prevent Crash)
     app.clientside_callback(
         """
@@ -2620,62 +2761,29 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'histogram-slider', 'column': ALL}, 'id'),
         Input({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
+        Input('filter-na-store', 'data'),
         Input('current-selection-store', 'data'),
         Input('econ-clear-trigger', 'data'),
         Input('geo-clear-trigger', 'data'),
+        Input('analysis-refresh', 'data'),
+        State('analysis-pane-open', 'data'),
         State('user-session-id', 'data'),
         State('econ-clicked-point', 'data'),
         State('geo-clicked-point', 'data'),
     )
-    def update_analysis_charts(subset_mode, trigger, active_layer_id, slider_vals, slider_ids, cat_vals, cat_ids, selected_uuids, econ_clear, geo_clear, session_id, econ_clicked_point, geo_clicked_point):
+    def update_analysis_charts(subset_mode, trigger, active_layer_id, slider_vals, slider_ids, cat_vals, cat_ids, na_store, selected_uuids, econ_clear, geo_clear, _refresh, pane_open, session_id, econ_clicked_point, geo_clicked_point):
+        if not pane_open:  # charts are refreshed when the pane is opened
+            raise dash.exceptions.PreventUpdate
+        # Get language from app config
         lang = app.lang
 
         empty_fig = go.Figure()
         empty_fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', xaxis={'visible':False}, yaxis={'visible':False})
         empty_text = t('spider_charts.total_production', lang, value='0')
-        empty_settle = ''
-        empty_pop = ''
-
+        empty_settle = t('analysis.total_settlements', lang, value='0')
+        empty_pop = t('analysis.total_population', lang, value='0')
         empty_9 = (empty_fig, empty_fig, empty_fig, empty_text, empty_settle, empty_pop, empty_fig, empty_fig,
                    [], empty_fig, empty_fig, [], empty_fig, empty_fig, [], empty_fig)
-
-        def themed_fig():
-            f = go.Figure()
-            f.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0.15)',
-                font=dict(family='Mulish', color='#ecf0f1', size=10),
-                margin=dict(l=40, r=10, t=28, b=36),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.08)', zerolinecolor='rgba(255,255,255,0.15)'),
-                yaxis=dict(gridcolor='rgba(255,255,255,0.08)', zerolinecolor='rgba(255,255,255,0.15)'),
-            )
-            return f
-
-        def kpi_badge(label, value, unit=''):
-            return html.Div([
-                html.Div(f"{value}{unit}", style={
-                    'fontSize': '15px', 'fontWeight': 'bold', 'color': '#FBB800',
-                    'fontFamily': 'Barlow Condensed', 'lineHeight': '1'
-                }),
-                html.Div(label, style={
-                    'fontSize': '9px', 'color': '#bbb', 'lineHeight': '1.2', 'marginTop': '2px'
-                })
-            ], style={
-                'background': 'rgba(0,0,0,0.25)', 'borderRadius': '5px',
-                'padding': '5px 7px', 'flex': '1', 'minWidth': '60px', 'textAlign': 'center'
-            })
-
-        def safe_mean(series):
-            s = pd.to_numeric(series, errors='coerce')
-            return s.mean() if not s.isna().all() else None
-
-        def safe_sum(series):
-            s = pd.to_numeric(series, errors='coerce')
-            return s.sum() if not s.isna().all() else None
-
-        def fmt(val, decimals=1):
-            if val is None or (isinstance(val, float) and np.isnan(val)):
-                return '—'
-            return f"{val:,.{decimals}f}"
 
         if not session_id or not active_layer_id:
             return empty_9
@@ -2683,23 +2791,14 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         # USE SESSION MANAGER
         df = dm.get_df(session_id, active_layer_id)
         if df is None: return empty_9
-        
+
         user_meta = dm.get_metadata(session_id)
         layer_meta = next((l for l in user_meta if l['id'] == active_layer_id), None)
         is_primary = layer_meta.get('is_primary', False) if layer_meta else False
 
         if subset_mode in ['filtered', 'selected']:
             if is_primary:
-                if slider_ids and slider_vals:
-                    for value, sid in zip(slider_vals, slider_ids):
-                        col = sid['column']
-                        if col in df.columns and value:
-                            df = df[(df[col]>=value[0]) & (df[col]<=value[1])]
-                if cat_ids:
-                    for values, cid in zip(cat_vals, cat_ids):
-                        col = cid['column']
-                        if col in df.columns and values:
-                            df = df[df[col].isin(values)]
+                df = apply_filters(df, slider_vals, slider_ids, cat_vals, cat_ids, na_store)
 
         if subset_mode == 'selected':
             is_select_all = (selected_uuids and len(selected_uuids) == 1 and selected_uuids[0] == 'ALL')
@@ -2736,6 +2835,10 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         if not df.empty and all(c in df.columns for c in required_cols):
             sun_df = df[required_cols].copy()
             sun_df[POPULATION_COLUMN] = pd.to_numeric(sun_df[POPULATION_COLUMN], errors='coerce').fillna(0)
+            # groupby() drops a row entirely if any admin level is NaN; fill first so no
+            # settlement's population is silently excluded (see the NGA sunburst fix).
+            for level in ADMIN_LEVELS:
+                sun_df[level] = sun_df[level].fillna('Unspecified')
             sun_df = sun_df.groupby(ADMIN_LEVELS, as_index=False)[POPULATION_COLUMN].sum()
             sun_df = sun_df[sun_df[POPULATION_COLUMN] > 0]
 
@@ -2744,7 +2847,6 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     sun_df, path=ADMIN_LEVELS, values=POPULATION_COLUMN,
                     color_discrete_sequence=px.colors.qualitative.Set2
                 )
-                pop_label = t('analysis.population_label', lang)
                 fig_pop_sunburst.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                     margin=dict(l=10, r=10, t=10, b=10),
@@ -2752,7 +2854,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 )
                 fig_pop_sunburst.update_traces(
                     textinfo='label+value',
-                    hovertemplate=f'<b>%{{label}}</b><br>{pop_label}: %{{value:,.0f}}<extra></extra>',
+                    hovertemplate='<b>%{label}</b><br>Population: %{value:,.0f}<extra></extra>',
                     insidetextorientation='radial'
                 )
             else:
@@ -2766,20 +2868,20 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             elec_df = df[[elec_col, POPULATION_COLUMN]].copy()
             elec_df[POPULATION_COLUMN] = pd.to_numeric(elec_df[POPULATION_COLUMN], errors='coerce').fillna(0)
             elec_df = elec_df.dropna(subset=[elec_col])
-            # Group directly by whatever labels the column already holds (e.g. 'Electrified',
-            # 'Unelectrified', 'Unknown') — no numeric-code remapping needed.
             elec_df = elec_df.groupby(elec_col, as_index=False)[POPULATION_COLUMN].sum()
             elec_df = elec_df[elec_df[POPULATION_COLUMN] > 0]
 
             if not elec_df.empty:
-                elec_palette = ['#2ecc71', '#e74c3c', '#f39c12', '#3498db', '#9b59b6', '#1abc9c', '#e67e22', '#95a5a6']
-                color_map = dict(zip(elec_df[elec_col].unique(), elec_palette))
                 fig_elec_sunburst = px.sunburst(
                     elec_df, path=[elec_col], values=POPULATION_COLUMN,
                     color=elec_col,
-                    color_discrete_map=color_map
+                    color_discrete_map={
+                        cat: color for cat, color in zip(
+                            elec_df[elec_col].unique(),
+                            ['#2ecc71', '#e74c3c', '#f39c12', '#3498db', '#9b59b6', '#1abc9c', '#e67e22', '#95a5a6']
+                        )
+                    }
                 )
-                pop_label = t('analysis.population_label', lang)
                 fig_elec_sunburst.update_layout(
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                     margin=dict(l=10, r=10, t=10, b=10),
@@ -2788,25 +2890,69 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 )
                 fig_elec_sunburst.update_traces(
                     textinfo='label+percent parent',
-                    hovertemplate=f'<b>%{{label}}</b><br>{pop_label}: %{{value:,.0f}}<br>%{{percentRoot:.1%}}<extra></extra>'
+                    hovertemplate='<b>%{label}</b><br>Population: %{value:,.0f}<br>%{percentRoot:.1%} of total<extra></extra>'
                 )
             else:
                 fig_elec_sunburst = empty_fig
         else:
             fig_elec_sunburst = empty_fig
 
-        # ── ECONOMIC, LIVELIHOODS & RISKS ────────────────────────────────────────
+        # ── Helper: themed figure base ──────────────────────────────────────────
+        def themed_fig():
+            f = go.Figure()
+            f.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0.15)',
+                font=dict(family='Mulish', color='#ecf0f1', size=10),
+                margin=dict(l=40, r=10, t=28, b=36),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.08)', zerolinecolor='rgba(255,255,255,0.15)'),
+                yaxis=dict(gridcolor='rgba(255,255,255,0.08)', zerolinecolor='rgba(255,255,255,0.15)'),
+            )
+            return f
+
+        def kpi_badge(label, value, unit=''):
+            return html.Div([
+                html.Div(f"{value}{unit}", style={
+                    'fontSize': '15px', 'fontWeight': 'bold', 'color': '#FBB800',
+                    'fontFamily': 'Barlow Condensed', 'lineHeight': '1'
+                }),
+                html.Div(label, style={
+                    'fontSize': '9px', 'color': '#bbb', 'lineHeight': '1.2', 'marginTop': '2px'
+                })
+            ], style={
+                'background': 'rgba(0,0,0,0.25)', 'borderRadius': '5px',
+                'padding': '5px 7px', 'flex': '1', 'minWidth': '60px', 'textAlign': 'center'
+            })
+
+        def safe_mean(series):
+            if series is None:  # column not in this dataset
+                return None
+            s = pd.to_numeric(series, errors='coerce')
+            return s.mean() if not s.isna().all() else None
+
+        def safe_sum(series):
+            if series is None:  # column not in this dataset
+                return None
+            s = pd.to_numeric(series, errors='coerce')
+            return s.sum() if not s.isna().all() else None
+
+        def fmt(val, decimals=1):
+            if val is None or (isinstance(val, float) and np.isnan(val)):
+                return '—'
+            return f"{val:,.{decimals}f}"
+
+        # ── ECONOMIC, LIVELIHOODS & RISKS ───────────────────────────────────────
+        # KPI badges
         wealth_mean   = safe_mean(df.get('Relative Wealth Index'))
-        food_mean_raw = safe_mean(df.get('Percentage of food-insecure people'))
+        food_mean_raw = safe_mean(df.get('Fraction of food-insecure people'))
         food_mean     = food_mean_raw * 100 if food_mean_raw is not None else None
-        conflict_sum  = safe_sum(df.get('Conflict fatalities nearby'))
+        conflict_sum  = safe_sum(df.get('Conflict fatalities nearby (last year)'))
         cyclone_mean  = safe_mean(df.get('Cyclone hazard (1 in 100 years wind speed)'))
 
         economic_kpis = [
-            kpi_badge(t('analysis.economic.avg_wealth', lang),         fmt(wealth_mean, 2)),
-            kpi_badge(t('analysis.economic.food_insecure', lang),       fmt(food_mean,  1), '%'),
+            kpi_badge(t('analysis.economic.avg_wealth', lang),      fmt(wealth_mean, 2)),
+            kpi_badge(t('analysis.economic.food_insecure', lang),    fmt(food_mean,  1), '%'),
             kpi_badge(t('analysis.economic.conflict_fatalities', lang), fmt(conflict_sum, 0) if conflict_sum is not None else '—'),
-            kpi_badge(t('analysis.economic.cyclone_risk', lang),        fmt(cyclone_mean, 0), ' km/h'),
+            kpi_badge(t('analysis.economic.cyclone_risk', lang),     fmt(cyclone_mean, 0), ' km/h'),
         ]
 
         # Livelihoods bar chart
@@ -2831,7 +2977,12 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
         # Wealth vs Population Density scatter (bubble = population, click-to-map)
         econ_scatter_cols = ['Relative Wealth Index', 'Population density']
-        econ_avail_extra = [c for c in ['lat', 'lon', POPULATION_COLUMN] + list(ADMIN_LEVELS) if c in df.columns]
+        extra_cols = ['lat', 'lon']
+        if POPULATION_COLUMN in df.columns:
+            extra_cols.append(POPULATION_COLUMN)
+        admin_hover_cols = [c for c in ADMIN_LEVELS if c in df.columns]
+        econ_avail_extra = [c for c in extra_cols + admin_hover_cols if c in df.columns]
+
         if not df.empty and all(c in df.columns for c in econ_scatter_cols):
             es_df = df[econ_scatter_cols + econ_avail_extra].copy()
             es_df['_uuid'] = df.index
@@ -2846,36 +2997,49 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 sizes = (pop_s / max_pop * 18 + 4).tolist()
                 lat_vals = es_df['lat'].tolist() if 'lat' in es_df.columns else [None]*len(es_df)
                 lon_vals = es_df['lon'].tolist() if 'lon' in es_df.columns else [None]*len(es_df)
-                econ_admin_cols = [ac for ac in ADMIN_LEVELS if ac in es_df.columns]
+                pop_vals = pop_s.tolist()
+                # customdata: [uuid, lat, lon, population, ...admin_cols]
                 full_customdata = []
                 for i, (uuid_v, lat_v, lon_v, pop_v) in enumerate(zip(
-                    es_df['_uuid'].tolist(), lat_vals, lon_vals, pop_s.tolist()
+                    es_df['_uuid'].tolist(), lat_vals, lon_vals, pop_vals
                 )):
-                    full_customdata.append([uuid_v, lat_v, lon_v, pop_v] + [es_df.iloc[i][ac] if ac in es_df.columns else '' for ac in econ_admin_cols])
+                    row_extra = [es_df.iloc[i][ac] if ac in es_df.columns else '' for ac in admin_hover_cols]
+                    full_customdata.append([uuid_v, lat_v, lon_v, pop_v] + row_extra)
+
+                # Hover: id, wealth, pop density, population, admin hierarchy
                 hover_parts = [
                     '<b>ID: %{customdata[0]}</b>',
                     'Wealth: %{x:.2f}',
                     'Pop. density: %{y:,.1f} pp/km²',
                     'Population: %{customdata[3]:,.0f}',
                 ]
-                for i, ac in enumerate(econ_admin_cols):
+                for i, ac in enumerate(admin_hover_cols):
                     hover_parts.append(f'{ac}: %{{customdata[{4+i}]}}')
                 hover_parts.append('<extra></extra>')
+                hovertemplate = '<br>'.join(hover_parts)
+
                 fig_wealth_food = themed_fig()
-                fig_wealth_food.add_trace(go.Scatter(
+                fig_wealth_food.add_trace(go.Scattergl(
                     x=es_df['Relative Wealth Index'].tolist(),
                     y=es_df['Population density'].tolist(),
                     mode='markers',
-                    marker=dict(size=sizes, color='#FBB800', opacity=0.65,
-                                line=dict(width=0.5, color='rgba(255,255,255,0.3)')),
+                    marker=dict(
+                        size=sizes,
+                        color='#FBB800', opacity=0.65,
+                        line=dict(width=0.5, color='rgba(255,255,255,0.3)')
+                    ),
                     customdata=full_customdata,
-                    hovertemplate='<br>'.join(hover_parts),
+                    hovertemplate=hovertemplate,
                     name='settlements',
                     selected=dict(marker=dict(color='#FBB800', opacity=1)),
                     unselected=dict(marker=dict(color='#FBB800', opacity=0.15)),
                 ))
-                if econ_clicked_point and econ_clicked_point.get('uuid'):
-                    hl_row = es_df[es_df['_uuid'] == econ_clicked_point['uuid']]
+
+                # Highlight trace for clicked point
+                econ_clicked = econ_clicked_point  # passed in from State
+                if econ_clicked and econ_clicked.get('uuid'):
+                    hl_uuid = econ_clicked['uuid']
+                    hl_row = es_df[es_df['_uuid'] == hl_uuid]
                     if not hl_row.empty:
                         r = hl_row.iloc[0]
                         fig_wealth_food.add_trace(go.Scatter(
@@ -2885,6 +3049,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                         line=dict(width=2, color='#00ff88')),
                             showlegend=False, hoverinfo='skip', name='highlight'
                         ))
+
                 fig_wealth_food.update_layout(
                     title=dict(text=t('analysis.economic.wealth_pop_title', lang), font=dict(size=10), x=0, xanchor='left'),
                     showlegend=False,
@@ -2896,7 +3061,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         else:
             fig_wealth_food = empty_fig
 
-        # ── PHYSICAL GEOGRAPHY & CLIMATE ─────────────────────────────────────────
+        # ── PHYSICAL GEOGRAPHY & CLIMATE ────────────────────────────────────────
         elev_mean   = safe_mean(df.get('Elevation'))
         temp_mean   = safe_mean(df.get('Mean temperature'))
         precip_mean = safe_mean(df.get('Precipitation'))
@@ -2904,7 +3069,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
         geography_kpis = [
             kpi_badge(t('analysis.geography.avg_elevation', lang), fmt(elev_mean, 0), ' m'),
-            kpi_badge(t('analysis.geography.avg_temp', lang),      fmt(temp_mean, 1), '°C'),
+            kpi_badge(t('analysis.geography.avg_temp', lang),      fmt(temp_mean, 1), ' °C'),
             kpi_badge(t('analysis.geography.avg_precip', lang),    fmt(precip_mean, 0), ' mm'),
             kpi_badge(t('analysis.geography.avg_solar', lang),     fmt(solar_mean, 0), ' kWh'),
         ]
@@ -2931,7 +3096,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
         # Cooling Degree Days vs Solar PV (bubble = population, click-to-map)
         geo_scatter_cols = ['Cooling Degree Days Cold Room at 4C', 'Solar PV Output (kWh/year per installed kW)']
-        geo_avail_extra = [c for c in ['lat', 'lon', POPULATION_COLUMN] + list(ADMIN_LEVELS) if c in df.columns]
+        geo_avail_extra = [c for c in ['lat', 'lon', POPULATION_COLUMN] + [ac for ac in ADMIN_LEVELS] if c in df.columns]
         if not df.empty and all(c in df.columns for c in geo_scatter_cols):
             gs_df = df[geo_scatter_cols + geo_avail_extra].copy()
             gs_df['_uuid'] = df.index
@@ -2946,12 +3111,14 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 sizes = (pop_s / max_pop * 18 + 4).tolist()
                 lat_vals = gs_df['lat'].tolist() if 'lat' in gs_df.columns else [None]*len(gs_df)
                 lon_vals = gs_df['lon'].tolist() if 'lon' in gs_df.columns else [None]*len(gs_df)
+                pop_vals = pop_s.tolist()
                 geo_admin_cols = [ac for ac in ADMIN_LEVELS if ac in gs_df.columns]
                 full_customdata = []
                 for i, (uuid_v, lat_v, lon_v, pop_v) in enumerate(zip(
-                    gs_df['_uuid'].tolist(), lat_vals, lon_vals, pop_s.tolist()
+                    gs_df['_uuid'].tolist(), lat_vals, lon_vals, pop_vals
                 )):
                     full_customdata.append([uuid_v, lat_v, lon_v, pop_v] + [gs_df.iloc[i][ac] if ac in gs_df.columns else '' for ac in geo_admin_cols])
+
                 hover_parts = [
                     '<b>ID: %{customdata[0]}</b>',
                     'Cooling DD: %{x:,.0f}°C·days',
@@ -2961,21 +3128,28 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 for i, ac in enumerate(geo_admin_cols):
                     hover_parts.append(f'{ac}: %{{customdata[{4+i}]}}')
                 hover_parts.append('<extra></extra>')
+
                 fig_cooling_solar = themed_fig()
-                fig_cooling_solar.add_trace(go.Scatter(
+                fig_cooling_solar.add_trace(go.Scattergl(
                     x=gs_df['Cooling Degree Days Cold Room at 4C'].tolist(),
                     y=gs_df['Solar PV Output (kWh/year per installed kW)'].tolist(),
                     mode='markers',
-                    marker=dict(size=sizes, color='#3498db', opacity=0.65,
-                                line=dict(width=0.5, color='rgba(255,255,255,0.3)')),
+                    marker=dict(
+                        size=sizes,
+                        color='#3498db', opacity=0.65,
+                        line=dict(width=0.5, color='rgba(255,255,255,0.3)')
+                    ),
                     customdata=full_customdata,
                     hovertemplate='<br>'.join(hover_parts),
                     name='settlements',
                     selected=dict(marker=dict(color='#3498db', opacity=1)),
                     unselected=dict(marker=dict(color='#3498db', opacity=0.15)),
                 ))
+
+                # Highlight trace for clicked point
                 if geo_clicked_point and geo_clicked_point.get('uuid'):
-                    hl_row = gs_df[gs_df['_uuid'] == geo_clicked_point['uuid']]
+                    hl_uuid = geo_clicked_point['uuid']
+                    hl_row = gs_df[gs_df['_uuid'] == hl_uuid]
                     if not hl_row.empty:
                         r = hl_row.iloc[0]
                         fig_cooling_solar.add_trace(go.Scatter(
@@ -2986,8 +3160,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                         line=dict(width=2, color='#00ff88')),
                             showlegend=False, hoverinfo='skip', name='highlight'
                         ))
+
                 fig_cooling_solar.update_layout(
-                    title=dict(text=t('analysis.geography.cooling_solar_title', lang), font=dict(size=10), x=0, xanchor='left'),
+                    title=dict(text=t('analysis.geography.cooling_potential_solar_title', lang), font=dict(size=10), x=0, xanchor='left'),
                     showlegend=False,
                     xaxis=dict(title='Cooling Degree Days (4°C)', gridcolor='rgba(255,255,255,0.08)'),
                     yaxis=dict(title='Solar PV Output (kWh/kW/yr)', gridcolor='rgba(255,255,255,0.08)'),
@@ -2997,24 +3172,37 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         else:
             fig_cooling_solar = empty_fig
 
-        # ── MARKET ACCESSIBILITY ──────────────────────────────────────────────────
-        mkt_cols = ['Export Market Accessibility', 'National Market Accessibility', 'Fresh Markets Accessibility']
-        mkt_present = [c for c in mkt_cols if c in df.columns]
+        # ── MARKET ACCESSIBILITY ────────────────────────────────────────────────
+        cities_mean   = safe_mean(df.get('Travel time cities'))
+        airports_mean = safe_mean(df.get('Travel time airports'))
+        ports_mean    = safe_mean(df.get('Travel time ports'))
+
         market_kpis = [
-            kpi_badge(get_column_translation(c, lang, COUNTRY_CODE), fmt(safe_mean(df.get(c)), 3))
-            for c in mkt_present
+            kpi_badge(t('analysis.market.avg_cities', lang),   fmt(cities_mean,   1), ' h'),
+            kpi_badge(t('analysis.market.avg_airports', lang), fmt(airports_mean, 1), ' h'),
+            kpi_badge(t('analysis.market.avg_ports', lang),    fmt(ports_mean,    1), ' h'),
         ]
 
-        mkt_index_cols = ['Export Market Accessibility', 'National Market Accessibility',
-                          'Fresh Markets Accessibility', 'Farming Activity']
-        if not df.empty and any(c in df.columns for c in mkt_index_cols[:3]):
-            idx_cols  = [c for c in mkt_index_cols if c in df.columns]
-            idx_vals  = [safe_mean(df[c]) or 0 for c in idx_cols]
-            idx_labels = [get_column_translation(c, lang, COUNTRY_CODE) for c in idx_cols]
-            idx_colors = ['#e67e22' if 'Export' in c else '#FBB800' if 'National' in c else '#3498db' if 'Fresh' in c else '#2ecc71' for c in idx_cols]
+        # Market accessibility indices comparison bar
+        index_cols = {
+            'Export Market Accessibility':   '#e67e22',
+            'National Market Accessibility': '#2ecc71',
+            'Fresh Markets Accessibility':   '#3498db',
+        }
+        if not df.empty and any(c in df.columns for c in index_cols):
+            idx_labels, idx_vals, idx_colors = [], [], []
+            for col, color in index_cols.items():
+                if col in df.columns:
+                    v = safe_mean(df[col])
+                    if v is not None:
+                        idx_labels.append(get_column_translation(col, lang, COUNTRY_CODE))
+                        idx_vals.append(round(v, 3))
+                        idx_colors.append(color)
             fig_market_indices = themed_fig()
             fig_market_indices.add_trace(go.Bar(
-                y=idx_labels, x=idx_vals, orientation='h',
+                y=idx_labels,
+                x=idx_vals,
+                orientation='h',
                 marker_color=idx_colors,
                 text=[f"{v:.3f}" for v in idx_vals],
                 textposition='outside',
@@ -3049,14 +3237,19 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'histogram-slider', 'column': ALL}, 'id'),
         Input({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
+        Input('filter-na-store', 'data'),
         Input('current-selection-store', 'data'),
         Input('bubble-clear-trigger', 'data'),
+        Input('analysis-refresh', 'data'),
+        State('analysis-pane-open', 'data'),
         State('user-session-id', 'data'),
         State('bubble-clicked-point', 'data'),
     )
     def update_bubble_chart(x_col, y_col, size_col, color_col, subset_mode, trigger,
-                            active_layer_id, slider_vals, slider_ids, cat_vals, cat_ids,
-                            selected_uuids, bubble_clear, session_id, bubble_clicked):
+                            active_layer_id, slider_vals, slider_ids, cat_vals, cat_ids, na_store,
+                            selected_uuids, bubble_clear, _refresh, pane_open, session_id, bubble_clicked):
+        if not pane_open:  # charts are refreshed when the pane is opened
+            raise dash.exceptions.PreventUpdate
         lang = app.lang
         empty_fig = go.Figure()
         empty_fig.update_layout(
@@ -3081,16 +3274,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         # Apply subset logic (same as analysis charts)
         if subset_mode in ['filtered', 'selected']:
             if is_primary:
-                if slider_ids and slider_vals:
-                    for value, sid in zip(slider_vals, slider_ids):
-                        col = sid['column']
-                        if col in df.columns and value:
-                            df = df[(df[col] >= value[0]) & (df[col] <= value[1])]
-                if cat_ids:
-                    for values, cid in zip(cat_vals, cat_ids):
-                        col = cid['column']
-                        if col in df.columns and values:
-                            df = df[df[col].isin(values)]
+                df = apply_filters(df, slider_vals, slider_ids, cat_vals, cat_ids, na_store)
 
         if subset_mode == 'selected':
             is_select_all = (selected_uuids and len(selected_uuids) == 1 and selected_uuids[0] == 'ALL')
@@ -3283,23 +3467,25 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Input('bubble-clicked-point', 'data')
     )
 
-    # --- ECON CHART CLICK → MAP ZOOM + GREEN PIN + HIGHLIGHT ---
+    # --- ECON CHART CLICK → MAP ZOOM + HIGHLIGHT ---
     app.clientside_callback(
         """
         function(clickData) {
             if (!clickData || !clickData.points || !clickData.points.length) {
-                return [window.dash_clientside.no_update, window.dash_clientside.no_update, window.dash_clientside.no_update];
+                return [window.dash_clientside.no_update, window.dash_clientside.no_update];
             }
             var pt = clickData.points[0];
             if (!pt.customdata) {
-                return [window.dash_clientside.no_update, window.dash_clientside.no_update, window.dash_clientside.no_update];
+                return [window.dash_clientside.no_update, window.dash_clientside.no_update];
             }
             var uuid = pt.customdata[0];
-            var lat  = pt.customdata[1];
-            var lon  = pt.customdata[2];
+            var lat = pt.customdata[1];
+            var lon = pt.customdata[2];
             if (lat == null || lon == null) {
-                return [window.dash_clientside.no_update, window.dash_clientside.no_update, window.dash_clientside.no_update];
+                return [window.dash_clientside.no_update, window.dash_clientside.no_update];
             }
+
+            // Immediate visual highlight via Plotly.restyle
             var gd = document.getElementById('chart-wealth-food');
             var plotGd = gd && gd._fullLayout ? gd : (gd ? gd.querySelector('.js-plotly-plot') || gd : null);
             if (plotGd && plotGd._fullData) {
@@ -3315,6 +3501,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 });
                 Plotly.restyle(plotGd, {selectedpoints: selPts});
             }
+
             return [
                 {center: {lat: lat, lon: lon}, zoom: 12},
                 {uuid: uuid, lat: lat, lon: lon},
@@ -3329,7 +3516,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
-    # --- CLEAR ECON HIGHLIGHT ---
+    # --- CLEAR ECON HIGHLIGHT (× button) ---
     app.clientside_callback(
         """
         function(n_clicks) {
@@ -3350,6 +3537,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
+    # --- Show/hide × button based on econ-clicked-point ---
     app.clientside_callback(
         """
         function(econ_clicked) {
@@ -3384,6 +3572,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             if (lat == null || lon == null) {
                 return [window.dash_clientside.no_update, window.dash_clientside.no_update, window.dash_clientside.no_update];
             }
+
             var gd = document.getElementById('chart-cooling-solar');
             var plotGd = gd && gd._fullLayout ? gd : (gd ? gd.querySelector('.js-plotly-plot') || gd : null);
             if (plotGd && plotGd._fullData) {
@@ -3399,6 +3588,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 });
                 Plotly.restyle(plotGd, {selectedpoints: selPts});
             }
+
             return [
                 {center: {lat: lat, lon: lon}, zoom: 12},
                 {uuid: uuid, lat: lat, lon: lon},
@@ -3413,7 +3603,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
-    # --- CLEAR GEO HIGHLIGHT ---
+    # --- CLEAR GEO HIGHLIGHT (× button) ---
     app.clientside_callback(
         """
         function(n_clicks) {
@@ -3434,6 +3624,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
+    # --- Show/hide × button based on geo-clicked-point ---
     app.clientside_callback(
         """
         function(geo_clicked) {
@@ -3464,6 +3655,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             }
             var uuid = String(row.orig_uuid);
 
+            // Look up lat/lon from client-layer-data
             var layerObj = store_data[active_layer_id];
             if (!layerObj) return [window.dash_clientside.no_update, window.dash_clientside.no_update];
             var columns = layerObj.columns;
@@ -3555,10 +3747,11 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
         State('current-selection-store', 'data'),
+        State('filter-na-store', 'data'),
         prevent_initial_call=True
     )
     def save_session(n_clicks, map_view, filter_columns, session_id,
-                     slider_vals, slider_ids, cat_vals, cat_ids, selected_points):
+                     slider_vals, slider_ids, cat_vals, cat_ids, selected_points, na_store):
         if not n_clicks or not session_id: return dash.no_update
         session_data = dm.get_session_state(session_id)
         session_data['map_view'] = map_view
@@ -3568,14 +3761,20 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         filter_values = {}
         if slider_ids:
             for id_dict, val in zip(slider_ids, slider_vals):
-                filter_values[id_dict['column']] = {'type': 'numeric', 'value': val}
+                filter_values[id_dict['column']] = {'type': 'numeric', 'value': val,
+                                                    'include_missing': bool((na_store or {}).get(id_dict['column']))}
         if cat_ids:
             for id_dict, val in zip(cat_ids, cat_vals):
                 filter_values[id_dict['column']] = {'type': 'categorical', 'value': val}
         session_data['filter_values'] = filter_values
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"agcap_session_{timestamp}.agcap"
-        return dict(content=json.dumps(session_data), filename=filename)
+        # Gzip-compress the session JSON: Cloud Run enforces a hard 32MB request/response
+        # cap, and Dash's dcc.Upload base64-encodes the file client-side (+33% size) before
+        # sending it back, so large uncompressed sessions trip a 413. Session JSON (repeated
+        # geo coordinates/labels) compresses very well, keeping round-trips under that ceiling.
+        compressed = gzip.compress(json.dumps(session_data).encode('utf-8'))
+        return dict(content=base64.b64encode(compressed).decode('ascii'), filename=filename, base64=True)
 
     @app.callback(
         [Output('layer-manager-trigger', 'data', allow_duplicate=True),
@@ -3594,6 +3793,12 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         try:
             content_type, content_string = contents.split(',')
             decoded = base64.b64decode(content_string)
+            # Sessions saved after the gzip fix are compressed; fall back to plain JSON
+            # for older .agcap files saved before this change.
+            try:
+                decoded = gzip.decompress(decoded)
+            except OSError:
+                pass
             session_data = json.loads(decoded.decode('utf-8'))
 
             success, msg = dm.load_session_state(session_id, session_data)
@@ -3744,6 +3949,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     new_df = pd.DataFrame(gdf.drop(columns='geometry'))
                     new_df['lat'] = gdf.geometry.centroid.y.values
                     new_df['lon'] = gdf.geometry.centroid.x.values
+
                 except Exception as e:
                     return dash.no_update, dash.no_update, f"Geospatial file error: {str(e)}"
                 finally:
@@ -3881,9 +4087,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
     )
     def render_layer_list(trigger, session_id):
         if not session_id: return []
-
+        
         user_meta = dm.get_metadata(session_id)
-
+        
         # Shared styles
         lbl = {'fontSize':'10px', 'color':'#bdc3c7'}
         lbl_sm = {'fontSize':'9px', 'color':'#bdc3c7'}
@@ -3913,6 +4119,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
             if is_polygon:
                 # --- POLYGON CARD ---
+                # Color-by-attribute dropdown: all non-system columns (numeric + categorical)
                 all_attr_cols = [c for c in layer.get('columns', [])
                                  if c not in ('centroid_lat','centroid_lon','ID','row_uuid','orig_uuid')]
                 color_col_opts = [{'label': get_column_translation(c, lang, COUNTRY_CODE), 'value': c}
@@ -3926,6 +4133,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     style={'color':'#333','fontSize':'11px','width':'100%','marginTop':'0px'}
                 )
 
+                # Hidden single-color placeholder (needed so ALL pattern callbacks don't miss this layer)
                 _scale_display = 'none' if layer.get('color_mode', 'single') == 'single' else None
                 poly_secondary = html.Div([
                     dbc.Input(id={'type': 'layer-single-color', 'index': lid}, type='color',
@@ -3940,6 +4148,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 ])
 
                 settings_body = html.Div([
+                    # Fill color + fill opacity
                     html.Div([
                         html.Label('Fill color', style=lbl),
                         dbc.Input(id={'type': 'layer-fill-color', 'index': lid}, type='color',
@@ -3949,6 +4158,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                               dcc.Slider(id={'type': 'layer-fill-opacity', 'index': lid},
                                          min=0, max=1, step=0.05, value=layer.get('fill_opacity', 0.4), marks=None)],
                              style={'marginBottom':'0px','height':'24px'}),
+                    # Outline color + weight + opacity
                     html.Div([
                         html.Label('Outline color', style=lbl),
                         dbc.Input(id={'type': 'layer-outline-color', 'index': lid}, type='color',
@@ -4046,6 +4256,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Input({'type': 'layer-down', 'index': ALL}, 'n_clicks'),
         Input({'type': 'layer-vis-btn', 'index': ALL}, 'n_clicks'),
         Input({'type': 'layer-del-btn', 'index': ALL}, 'n_clicks'),
+        # --- NEW STATES TO SNAPSHOT VALUES ---
         State({'type': 'layer-size', 'index': ALL}, 'value'),
         State({'type': 'layer-size', 'index': ALL}, 'id'),
         State({'type': 'layer-opacity', 'index': ALL}, 'value'),
@@ -4066,6 +4277,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'layer-outline-weight', 'index': ALL}, 'id'),
         State({'type': 'layer-outline-opacity', 'index': ALL}, 'value'),
         State({'type': 'layer-outline-opacity', 'index': ALL}, 'id'),
+        # -------------------------------------
         State('user-session-id', 'data'),
         prevent_initial_call=True
     )
@@ -4081,15 +4293,18 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                       outline_weights, outline_weight_ids,
                       outline_ops, outline_op_ids,
                       session_id):
-
+        
         ctx = callback_context
         if not ctx.triggered or not session_id: return dash.no_update
-
+        
         # --- 1. SNAPSHOT: Save current UI state to Backend before moving ---
+        # This prevents values from resetting when the list is re-rendered
         try:
+            # Helper to batch update
             def sync_settings(values, ids, key):
                 if not values or not ids: return
                 for val, id_dict in zip(values, ids):
+                    # Handle specific color picker dict format if needed
                     final_val = val
                     if key == 'single_color_hex' and isinstance(val, dict) and 'hex' in val:
                         final_val = val['hex']
@@ -4113,12 +4328,12 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             payload = json.loads(ctx.triggered[0]['prop_id'].split('.')[0])
             layer_id = payload['index']
             action = payload['type']
-
+            
             if action == 'layer-up': dm.move_layer(session_id, layer_id, 'up')
             elif action == 'layer-down': dm.move_layer(session_id, layer_id, 'down')
             elif action == 'layer-vis-btn': dm.toggle_visibility(session_id, layer_id)
             elif action == 'layer-del-btn': dm.delete_layer(session_id, layer_id)
-
+            
             return np.random.randint(100000)
         except: return dash.no_update
 
@@ -4154,12 +4369,13 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'histogram-slider', 'column': ALL}, 'id'),
         Input({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
+        Input('filter-na-store', 'data'),
         Input('table-layer-dropdown', 'value'),
         State('user-session-id', 'data'),
         State('column-dropdown', 'value'),
         State('filter-log-scale-store', 'data')
     )
-    def update_legend_only(trigger, sizes, opacities, color_cols, color_scales, single_colors, slider_vals, slider_ids, cat_vals, cat_ids, active_table_layer, session_id, selected_columns, clip_cols):
+    def update_legend_only(trigger, sizes, opacities, color_cols, color_scales, single_colors, slider_vals, slider_ids, cat_vals, cat_ids, na_store, active_table_layer, session_id, selected_columns, clip_cols):
         # NOTE: This callback now ONLY handles the Legend. The Map is updated Client-Side.
 
         if not session_id: return [], {'display': 'none'}, {}
@@ -4167,7 +4383,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         # --- REPLICATE FILTERING LOGIC FOR LEGEND STATS ---
         # We need to filter data here just to show the correct Min/Max in the legend
 
-        legend_items = [html.H5("LEGEND", style={'fontSize': '12px', 'marginBottom': '8px', 'borderBottom': '1px solid #777', 'paddingBottom': '4px'})]
+        legend_items = [html.H5(t('legend.title', lang), style={'fontSize': '12px', 'marginBottom': '8px', 'borderBottom': '1px solid #777', 'paddingBottom': '4px'})]
         legend_style = {'display': 'block', 'position': 'absolute', 'top': '60px', 'left': '15px', 'zIndex': 5, 'width': '220px', 'maxHeight': '80vh', 'overflowY': 'auto'}
 
         user_data = dm.get_user_data(session_id)
@@ -4175,9 +4391,6 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
         if not visible_layers: return [], {'display': 'none'}, {}
 
-        # Build slider/cat lookup for cross-filter histogram computation
-        slider_map = {sid['column']: val for sid, val in zip(slider_ids or [], slider_vals or [])}
-        cat_map = {cid['column']: val for cid, val in zip(cat_ids or [], cat_vals or [])}
         clip_cols = clip_cols or {}
 
         # Compute cross-filtered histogram data for each selected filter column
@@ -4186,21 +4399,20 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             for col in selected_columns:
                 if col in ['lat', 'lon', 'row_uuid', 'geometry', 'index', 'orig_uuid', 'ID']:
                     continue
-                # Build cross-filter mask (exclude current col)
-                mask = pd.Series(True, index=df_main.index)
-                for other_col, val in slider_map.items():
-                    if other_col == col or other_col not in df_main.columns or not val:
-                        continue
-                    mask &= (df_main[other_col] >= val[0]) & (df_main[other_col] <= val[1])
-                for other_col, vals in cat_map.items():
-                    if other_col == col or other_col not in df_main.columns or not vals:
-                        continue
-                    mask &= df_main[other_col].isin(vals)
+                # Build cross-filter mask (exclude current col for numeric, all cols for categorical)
+                mask = filter_mask(df_main, slider_vals, slider_ids, cat_vals, cat_ids, na_store, exclude_col=col)
                 cross_filtered_col = df_main.loc[mask, col].dropna()
+                # Missing values: count within the cross-filter, shown on the card's checkbox / (empty) option
+                col_missing = missing_mask(df_main[col])
+                missing_info = {}
+                if col_missing.any():
+                    n_missing = int((col_missing & mask).sum())
+                    label_key = 'filters.include_missing' if pd.api.types.is_numeric_dtype(df_main[col]) else 'filters.missing_option'
+                    missing_info = {'missing_label': t(label_key, lang, n=f'{n_missing:,}')}
 
                 if pd.api.types.is_numeric_dtype(df_main[col]):
                     if cross_filtered_col.empty:
-                        hist_data[col] = {'counts': []}
+                        hist_data[col] = {'counts': [], **missing_info}
                         continue
                     clean_full = df_main[col].dropna()
                     mn_full = float(clean_full.min())
@@ -4210,28 +4422,18 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     if p95 <= mn_full: p95 = mx_full
                     sl_max = p95 if use_clip else mx_full
                     counts, _ = np.histogram(cross_filtered_col, bins=50, range=(mn_full, sl_max))
-                    hist_data[col] = {'counts': counts.tolist()}
+                    hist_data[col] = {'counts': counts.tolist(), **missing_info}
                 else:
+                    # Categorical: count occurrences in cross-filtered data
                     counts_series = cross_filtered_col.value_counts()
-                    hist_data[col] = {'cat_counts': {str(k): int(v) for k, v in counts_series.items()}}
+                    hist_data[col] = {'cat_counts': {str(k): int(v) for k, v in counts_series.items()}, **missing_info}
 
         for layer in visible_layers:
             dff = user_data['layers'][layer['id']]
 
             # Filter Logic (Duplicate of Client Side, but needed for Stats)
             if layer.get('is_primary', False):
-                filtered_df = dff.copy()
-                if slider_ids and slider_vals:
-                    for value, sid in zip(slider_vals, slider_ids):
-                        col = sid['column']
-                        if col in filtered_df.columns and value:
-                            filtered_df = filtered_df[(filtered_df[col] >= value[0]) & (filtered_df[col] <= value[1])]
-                if cat_ids and cat_vals:
-                    for values, cid in zip(cat_vals, cat_ids):
-                        col = cid['column']
-                        if col in filtered_df.columns and values:
-                            filtered_df = filtered_df[filtered_df[col].isin(values)]
-                dff = filtered_df
+                dff = apply_filters(dff, slider_vals, slider_ids, cat_vals, cat_ids, na_store)
 
             # Construct Legend Item
             layer_display_name = t('layer.default_name', lang) if layer['name'] == 'Settlements' else layer['name']
@@ -4276,7 +4478,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     else:
                         legend_items.append(html.Div(f"{layer_display_name} ({t('legend.no_data', lang)})", className="legend-item"))
             else:
-                # --- POINT LEGEND ---
+                # --- POINT LEGEND (existing logic) ---
                 base_size = layer['size']
                 if layer['color_mode'] == 'single':
                     color_val = layer.get('single_color_hex', '#FBB800')
@@ -4314,22 +4516,27 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
         State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
         State('pending-filter-values', 'data'),
+        State('filter-na-store', 'data'),
         prevent_initial_call='initial_duplicate'
     )
-    def update_filter_panel(selected_columns, clip_cols, slider_vals, slider_ids, cat_vals, cat_ids, pending_filters):
+    def update_filter_panel(selected_columns, clip_cols, slider_vals, slider_ids, cat_vals, cat_ids, pending_filters, na_store):
         if not selected_columns: return [], None
         clip_cols = clip_cols or {}
         lang = app.lang
         current_numeric, current_cat = {}, {}
+        include_na = dict(na_store or {})
         if slider_ids: current_numeric = {id_dict['column']: val for id_dict, val in zip(slider_ids, slider_vals)}
         if cat_ids: current_cat = {id_dict['column']: val for id_dict, val in zip(cat_ids, cat_vals)}
         if pending_filters:
             for col, fv in pending_filters.items():
                 if fv.get('type') == 'numeric' and col not in current_numeric:
                     current_numeric[col] = fv['value']
+                    if fv.get('include_missing'):
+                        include_na[col] = True
                 elif fv.get('type') == 'categorical' and col not in current_cat:
                     current_cat[col] = fv['value']
         def fmt_num(v):
+            """Format a number compactly: 1500000 → 1.5M, 2300 → 2.3k, 0.0123 → 0.012"""
             if abs(v) >= 1_000_000: return f'{v/1_000_000:.2g}M'
             if abs(v) >= 10_000:    return f'{v/1_000:.3g}k'
             if abs(v) >= 1_000:     return f'{v/1_000:.2g}k'
@@ -4337,6 +4544,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             return f'{v:.3g}'
 
         def slider_marks(mn, sl_max, n_marks=5):
+            """Generate evenly spaced marks with formatted labels."""
             step = (sl_max - mn) / (n_marks - 1)
             vals = [mn + i * step for i in range(n_marks)]
             return {v: {'label': fmt_num(v), 'style': {'color': '#aaa', 'fontSize': '9px'}} for v in vals}
@@ -4374,6 +4582,15 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     'color': '#ecf0f1', 'border': '1px solid #555', 'fontSize': '10px',
                     'borderRadius': '3px', 'padding': '2px 4px', 'fontFamily': 'Mulish'
                 }
+                n_missing = int(df_main[col].isna().sum())
+                na_box = [dcc.Checklist(
+                    id={'type': 'filter-include-na', 'column': col},
+                    options=[{'label': t('filters.include_missing', lang, n=f'{n_missing:,}'), 'value': 'include'}],
+                    value=['include'] if include_na.get(col) else [],
+                    inputStyle={'marginRight': '5px', 'cursor': 'pointer'},
+                    labelStyle={'cursor': 'pointer'},
+                    style={'fontSize': '10px', 'color': '#bdc3c7', 'fontFamily': 'Mulish', 'marginTop': '4px'},
+                )] if n_missing else []
                 is_active = (val[0] > mn or val[1] < sl_max)
                 reset_style = {
                     'fontSize': '13px', 'padding': '0px 4px', 'border': 'none',
@@ -4403,11 +4620,15 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                         'boxSizing': 'border-box'
                     }),
                     dcc.RangeSlider(id={'type':'histogram-slider','column':col}, min=mn, max=sl_max, value=val,
-                                    marks=slider_marks(mn, sl_max), tooltip={"always_visible":False})
+                                    marks=slider_marks(mn, sl_max), tooltip={"always_visible":False}),
+                    *na_box,
                 ], style={'marginBottom':'10px','backgroundColor':'#2e2e2e','padding':'8px','borderRadius':'6px','border':'1px solid #444'}))
             else:
                 val_counts = df_main[col].dropna().value_counts()
                 cat_options = [{'label': f'{str(v)} [{val_counts.get(v, 0)}]', 'value': str(v)} for v in sorted(val_counts.index.tolist())]
+                n_missing = int(missing_mask(df_main[col]).sum())
+                if n_missing:
+                    cat_options.append({'label': t('filters.missing_option', lang, n=f'{n_missing:,}'), 'value': MISSING})
                 children.append(html.Div([
                     html.Label(translated_col, style={'fontSize':'11px','fontWeight':'bold','color':'#ecf0f1','fontFamily':'Mulish','marginBottom':'4px','display':'block'}),
                     dcc.Dropdown(id={'type':'categorical-dropdown','column':col}, options=cat_options, value=current_cat.get(col,[]), multi=True, style={'color':'#333','fontSize':'10px'})
@@ -4425,10 +4646,11 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 const id_part = triggered.split('.')[0];
                 const id_obj = JSON.parse(id_part);
                 const col = id_obj.column;
+                // Find the n_clicks for the triggered button
                 const idx = ids.findIndex(function(id) { return id.column === col; });
                 const n = n_clicks_list[idx] || 0;
                 const store = Object.assign({}, current_store || {});
-                store[col] = (n % 2 === 1);
+                store[col] = (n % 2 === 1);  // odd clicks = clipped
                 return store;
             } catch(e) {
                 return window.dash_clientside.no_update;
@@ -4558,6 +4780,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
     )
 
     # --- CLIENTSIDE: UPDATE HISTOGRAM BARS from cross-filter store ---
+    # Only updates the histogram bar heights. Slider bounds/value and text inputs are NOT
+    # touched here — they stay at the full data range (or p95) and are controlled by the
+    # slider↔input sync callback and the panel rebuild on p95 toggle.
     app.clientside_callback(
         """
         function(hist_data, hist_ids) {
@@ -4589,6 +4814,42 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
 
+    # --- CLIENTSIDE: 'Include N empty values' checkboxes -> filter-na-store ({column: true}) ---
+    app.clientside_callback(
+        """
+        function(values, ids, current) {
+            var out = {};
+            (ids || []).forEach(function(id_obj, i) {
+                if ((values[i] || []).indexOf('include') > -1) out[id_obj.column] = true;
+            });
+            if (JSON.stringify(out) === JSON.stringify(current || {})) return window.dash_clientside.no_update;
+            return out;
+        }
+        """,
+        Output('filter-na-store', 'data'),
+        Input({'type': 'filter-include-na', 'column': ALL}, 'value'),
+        State({'type': 'filter-include-na', 'column': ALL}, 'id'),
+        State('filter-na-store', 'data'),
+    )
+
+    # --- CLIENTSIDE: refresh 'Include N empty values' counts with the cross-filter ---
+    app.clientside_callback(
+        """
+        function(hist_data, ids) {
+            if (!hist_data || !ids || !ids.length) return window.dash_clientside.no_update;
+            return ids.map(function(id_obj) {
+                var d = hist_data[id_obj.column];
+                if (!d || !d.missing_label) return window.dash_clientside.no_update;
+                return [{ label: d.missing_label, value: 'include' }];
+            });
+        }
+        """,
+        Output({'type': 'filter-include-na', 'column': ALL}, 'options'),
+        Input('filter-histogram-data', 'data'),
+        State({'type': 'filter-include-na', 'column': ALL}, 'id'),
+        prevent_initial_call=True
+    )
+
     # --- CLIENTSIDE: UPDATE CATEGORICAL OPTIONS with cross-filter counts ---
     app.clientside_callback(
         """
@@ -4599,9 +4860,12 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 var d = hist_data[col];
                 if (!d || !d.cat_counts) return window.dash_clientside.no_update;
                 var counts = d.cat_counts;
-                return Object.keys(counts).sort().map(function(v) {
+                // Rebuild options with counts — keys are existing option values
+                var opts = Object.keys(counts).sort().map(function(v) {
                     return { label: v + ' [' + counts[v] + ']', value: v };
                 });
+                if (d.missing_label) opts.push({ label: d.missing_label, value: window.agcapFilters.MISSING });
+                return opts;
             });
         }
         """,
@@ -4614,7 +4878,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
     # --- CLIENTSIDE TABLE ENGINE (Custom Paging - no server round-trip) ---
     app.clientside_callback(
         """
-        function(page_current, sort_by, selected_uuids, active_layer_id, slider_vals, cat_vals,
+        function(page_current, sort_by, selected_uuids, active_layer_id, slider_vals, cat_vals, na_store,
                  slider_ids, cat_ids, store_data, col_translations, edits_store, col_tooltips) {
 
             var placeholderShow = {'display':'flex','flexDirection':'column','alignItems':'center','justifyContent':'center','height':'100%','color':'#7f8c8d','textAlign':'center'};
@@ -4632,9 +4896,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             var colIdx = {};
             columns.forEach(function(c, i) { colIdx[c] = i; });
             var uuidIdx = colIdx['row_uuid'] !== undefined ? colIdx['row_uuid'] : 0;
-            var totalRows = rawData.length;
 
-            // --- Overlay edits from table-edits-store onto rawData BEFORE filtering/sorting ---
+            // --- Overlay edits onto rawData before filtering/sorting ---
             var edits = edits_store || {};
             if (Object.keys(edits).length > 0) {
                 var _notesI = colIdx['Notes'], _scoreI = colIdx['Score'];
@@ -4651,35 +4914,11 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     });
                 }
             }
+            var totalRows = rawData.length;
 
-            // --- Apply sidebar filters ---
-            var filtered = [];
-            for (var i = 0; i < rawData.length; i++) {
-                var row = rawData[i];
-                var pass = true;
-                if (slider_ids && slider_vals) {
-                    for (var s = 0; s < slider_ids.length; s++) {
-                        var sc = slider_ids[s].column;
-                        var sv = slider_vals[s];
-                        if (sc && sv && colIdx[sc] !== undefined) {
-                            var val = row[colIdx[sc]];
-                            if (val !== null && val !== undefined && !isNaN(val)) {
-                                if (val < sv[0] || val > sv[1]) { pass = false; break; }
-                            }
-                        }
-                    }
-                }
-                if (pass && cat_ids && cat_vals) {
-                    for (var ci = 0; ci < cat_ids.length; ci++) {
-                        var cc = cat_ids[ci].column;
-                        var cv = cat_vals[ci];
-                        if (cc && cv && cv.length > 0 && colIdx[cc] !== undefined) {
-                            if (cv.indexOf(row[colIdx[cc]]) === -1) { pass = false; break; }
-                        }
-                    }
-                }
-                if (pass) filtered.push(row);
-            }
+            // --- Apply sidebar filters (shared rules: assets/agcap_filters.js) ---
+            var filterSpec = window.agcapFilters.compile(colIdx, slider_ids, slider_vals, cat_ids, cat_vals, na_store);
+            var filtered = rawData.filter(function(row) { return window.agcapFilters.rowPasses(row, filterSpec); });
             var filteredCount = filtered.length;
 
             // --- Selection ---
@@ -4760,6 +4999,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             }
 
             // --- Build records (only current page) ---
+            var edits = edits_store || {};
             var records = pageSlice.map(function(row) {
                 var rec = {};
                 var uuid = row[uuidIdx];
@@ -4796,7 +5036,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
          Input('current-selection-store', 'data'),
          Input('table-layer-dropdown', 'value'),
          Input({'type': 'histogram-slider', 'column': ALL}, 'value'),
-         Input({'type': 'categorical-dropdown', 'column': ALL}, 'value')],
+         Input({'type': 'categorical-dropdown', 'column': ALL}, 'value'),
+         Input('filter-na-store', 'data')],
         [State({'type': 'histogram-slider', 'column': ALL}, 'id'),
          State({'type': 'categorical-dropdown', 'column': ALL}, 'id'),
          State('client-layer-data', 'data'),
@@ -4823,11 +5064,9 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                  outline_colors, outline_color_ids, outline_weights, outline_weight_ids,
                  outline_opacities, outline_opacity_ids,
                  n_clicks_select, n_clicks_deselect, map_selected_data,
-                 map_relayout, map_view, visible_layers, basemap_style, mapbox_token, edits_store, bubble_clear,
-                 current_selection_list, active_tool, bubble_highlight) {
+                 map_relayout, map_view, visible_layers, basemap_style, edits_store, bubble_clear, na_store,
+                 current_selection_list, column_translations, active_tool, bubble_highlight) {
 
-            // Pass Mapbox token to Plotly config (needed for satellite/dark/light styles)
-            if (mapbox_token) Plotly.setPlotConfig({mapboxAccessToken: mapbox_token});
 
             if (!storeData || Object.keys(storeData).length === 0) {
                 return [window.dash_clientside.no_update, window.dash_clientside.no_update];
@@ -4843,19 +5082,43 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 window.__agcap_geojson = {};
             }
 
-            // --- Early-return on pure pan/zoom: map handles it natively, no rebuild needed ---
+            // Point size grows with zoom: x1 up to zoom 6, then +0.4 per level, capped at x3
+            const zoomFactor = (z) => Math.round(Math.min(3, Math.max(1, 1 + (z - 6) * 0.4)) * 10) / 10;
+
+            // --- Early-return on pure pan/zoom: no rebuild, only resize point markers if needed ---
             if (trigger.includes('map.relayoutData')) {
+                const newZoom = map_relayout ? map_relayout['map.zoom'] : undefined;
+                if (newZoom !== undefined && zoomFactor(newZoom) !== window.__agcap_zoom_factor) {
+                    const f = zoomFactor(newZoom);
+                    window.__agcap_zoom_factor = f;
+                    let gd = document.getElementById('map');
+                    if (gd) gd = gd._fullLayout ? gd : (gd.querySelector('.js-plotly-plot') || gd);
+                    const idx = [], sz = [], selSz = [];
+                    ((gd && gd.data) || []).forEach((tr, i) => {
+                        if (tr.meta && tr.meta.agcapBaseSize !== undefined) {
+                            idx.push(i);
+                            sz.push(tr.meta.agcapBaseSize * f);
+                            selSz.push(tr.meta.agcapBaseSize * f + 8);
+                        }
+                    });
+                    if (idx.length) Plotly.restyle(gd, {'marker.size': sz, 'selected.marker.size': selSz}, idx);
+                }
                 return [window.dash_clientside.no_update, window.dash_clientside.no_update];
             }
 
             // --- 1. Get Current Zoom for Dynamic Sizing ---
-            // Priority: 1. Manual User Zoom (relayout), 2. Programmatic View (store), 3. Default
+            // Priority: 1. Programmatic view change (store), 2. Live map zoom, 3. Stored view, 4. Default
             let currentZoom = 5;
-            if (map_relayout && map_relayout['map.zoom']) {
-                currentZoom = map_relayout['map.zoom'];
+            let zoomGd = document.getElementById('map');
+            if (zoomGd) zoomGd = zoomGd._fullLayout ? zoomGd : (zoomGd.querySelector('.js-plotly-plot') || zoomGd);
+            if (trigger.includes('map-view-store') && map_view && map_view.zoom) {
+                currentZoom = map_view.zoom;
+            } else if (zoomGd && zoomGd._fullLayout && zoomGd._fullLayout.map) {
+                currentZoom = zoomGd._fullLayout.map.zoom;
             } else if (map_view && map_view.zoom) {
                 currentZoom = map_view.zoom;
             }
+            window.__agcap_zoom_factor = zoomFactor(currentZoom);
 
             // --- 2. Selection Intent ---
             let isAllFlag = (current_selection_list && current_selection_list.length === 1 && current_selection_list[0] === 'ALL');
@@ -4890,6 +5153,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             const finalSelectedUUIDs = [];
 
             // --- Colorscale helpers for polygon data-driven coloring ---
+            // Maps a normalized 0-1 value to an RGB color from a named scale (discrete buckets)
             const SCALE_STOPS = {
                 'Turbo':    [[0,'#30123b'],[0.14,'#4145ab'],[0.28,'#3d87f5'],[0.43,'#1bcfd4'],[0.57,'#4df884'],[0.71,'#a2fc3c'],[0.86,'#fdb827'],[1,'#7a0403']],
                 'Viridis':  [[0,'#440154'],[0.25,'#31688e'],[0.5,'#35b779'],[0.75,'#90d743'],[1,'#fde725']],
@@ -4910,6 +5174,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 for (let i = 1; i < stops.length; i++) {
                     if (norm <= stops[i][0]) {
                         const t = (norm - stops[i-1][0]) / (stops[i][0] - stops[i-1][0]);
+                        // Simple interpolation: return nearest stop
                         return t < 0.5 ? stops[i-1][1] : stops[i][1];
                     }
                 }
@@ -4927,6 +5192,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 if (layerObj.layer_type === 'polygon') {
                     if (!layerObj.geojson) return;
 
+                    // Cache GeoJSON parse in window memory
                     if (!window.__agcap_geojson) window.__agcap_geojson = {};
                     if (!window.__agcap_geojson[lid]) window.__agcap_geojson[lid] = layerObj.geojson;
                     const geojson = window.__agcap_geojson[lid];
@@ -4941,11 +5207,13 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     const useColormap = (colorCol && colorCol !== 'Single Color');
 
                     if (!useColormap) {
+                        // Single fill
                         polygonMapboxLayers.push({
                             sourcetype: 'geojson', source: geojson,
                             type: 'fill', color: fillColor, opacity: fillOpacity, below: 'traces'
                         });
                     } else {
+                        // Color-by-attribute: build uuid→value lookup from attribute data
                         const columns = layerObj.columns || [];
                         const colIdx2 = {};
                         columns.forEach((c, i) => { colIdx2[c] = i; });
@@ -4957,14 +5225,18 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                             const uuidToVal = {};
                             rows.forEach(r => { uuidToVal[String(r[uuidIdx2])] = r[cIdx2]; });
 
+                            // Detect numeric vs categorical
                             const vals = rows.map(r => r[cIdx2]).filter(v => v !== null && v !== '');
                             const isNumeric = vals.length > 0 && vals.every(v => !isNaN(Number(v)));
 
                             if (isNumeric) {
                                 const nums = vals.map(Number);
+                                // Use reduce to avoid spread stack overflow on large arrays
                                 const mn = nums.reduce((a, b) => a < b ? a : b, nums[0]);
                                 const mx = nums.reduce((a, b) => a > b ? a : b, nums[0]);
                                 const range = mx - mn || 1;
+                                // Assign each feature a color by normalizing its value directly
+                                // Group features by quantized color bucket (256 steps) to minimize layer count
                                 const N_STEPS = 256;
                                 const bucketMap = {};
                                 geojson.features.forEach(f => {
@@ -4986,10 +5258,13 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                     });
                                 });
                             } else {
+                                // Categorical: assign each unique value a color from the selected scale
+                                // evenly spaced across 0→1, so hundreds of categories get distinct shades
                                 const uniqueVals = [...new Set(vals.map(String))];
                                 const nCats = uniqueVals.length;
                                 const catIndex = {};
                                 uniqueVals.forEach((v, i) => { catIndex[v] = i; });
+                                // Group features by category value
                                 const catBuckets = {};
                                 geojson.features.forEach(f => {
                                     const uuid = String(f.properties && (f.properties.row_uuid || f.properties.index) || '');
@@ -5068,18 +5343,14 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 const rawSize = findSetting(sizes, size_ids, lid, 4);
                 const opacity = Number(findSetting(opacities, opacity_ids, lid, 0.8)); // Force Number
                 const colorCol = findSetting(color_cols, color_col_ids, lid, 'Single Color');
-                const colorScale = findSetting(color_scales, scale_ids, lid, 'Turbo'); 
+                const colorScale = findSetting(color_scales, scale_ids, lid, 'Turbo');
                 let sColor = findSetting(single_colors, single_color_ids, lid, '#FBB800');
                 if (sColor && typeof sColor === 'object' && sColor.hex) sColor = sColor.hex;
 
                 const isActive = (lid === active_layer_id);
                 
-                // --- DYNAMIC SIZE LOGIC ---
-                // If zoom > 8, increase size by 2.5x (Client-side implementation of old logic)
-                let renderedSize = rawSize;
-                if (currentZoom > 8) {
-                    renderedSize = rawSize * 2.5;
-                }
+                // --- DYNAMIC SIZE LOGIC (scaled by zoom; pan/zoom resizes via Plotly.restyle above) ---
+                const renderedSize = Number(rawSize) * zoomFactor(currentZoom);
 
                 // Cache Signature (Includes renderedSize to invalidate on zoom change)
                 const settingsSig = `${renderedSize}-${opacity}-${colorCol}-${colorScale}-${sColor}`;
@@ -5115,8 +5386,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     }
                 }
 
-                const sliderIndices = (isActive && slider_ids) ? slider_ids.map(s => colIdx[s.column]) : [];
-                const catIndices = (isActive && cat_ids) ? cat_ids.map(c => colIdx[c.column]) : [];
+                // Sidebar filters apply to the active layer only (shared rules: assets/agcap_filters.js)
+                const filterSpec = isActive ? window.agcapFilters.compile(colIdx, slider_ids, slider_vals, cat_ids, cat_vals, na_store) : null;
 
                 let displayIDIdx = 0;
                 const candidates = ['id', 'fid', 'name', 'settlement', 'station'];
@@ -5143,28 +5414,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
                 for (let i = 0; i < rawData.length; i++) {
                     const row = rawData[i];
-                    let keep = true;
-
-                    if (isActive) {
-                        if (slider_ids && slider_vals) {
-                            for (let j = 0; j < slider_ids.length; j++) {
-                                const val = row[sliderIndices[j]];
-                                const range = slider_vals[j];
-                                if (val !== undefined && range) {
-                                    if (val < range[0] || val > range[1]) { keep = false; break; }
-                                }
-                            }
-                        }
-                        if (keep && cat_ids && cat_vals) {
-                            for (let j = 0; j < cat_ids.length; j++) {
-                                const val = row[catIndices[j]];
-                                const accepted = cat_vals[j];
-                                if (accepted && accepted.length > 0) {
-                                    if (!accepted.includes(String(val))) { keep = false; break; }
-                                }
-                            }
-                        }
-                    } 
+                    const keep = !filterSpec || window.agcapFilters.rowPasses(row, filterSpec);
 
                     if (keep) {
                         const u = row[uuidIdx];
@@ -5180,12 +5430,17 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                         let hText = "";
                         const safeVal = (useColormap && row[cIdx] != null) ? row[cIdx] : "N/A";
 
+                        // Helper function to translate column names
+                        const translateCol = (col) => (column_translations && column_translations[col]) ? column_translations[col] : col;
+
                         if (layerName === "Settlements") {
-                             const colorDisplay = useColormap ? `<b>${colorCol}</b>: ${safeVal}` : `<b>${layerName}</b>`;
+                             const translatedColorCol = translateCol(colorCol);
+                             const colorDisplay = useColormap ? `<b>${translatedColorCol}</b>: ${safeVal}` : `<b>${layerName}</b>`;
                              hText = `${colorDisplay}<br>ID: ${dID}`;
-                        } 
+                        }
                         else {
-                            hText = (useColormap) ? `<b>${colorCol}</b>: ${safeVal}<br>` : "";
+                            const translatedColorCol = translateCol(colorCol);
+                            hText = (useColormap) ? `<b>${translatedColorCol}</b>: ${safeVal}<br>` : "";
                             hText += `<b>ID</b>: ${dID}<br>`;
                             let count = 0;
                             for(let k=0; k < columns.length; k++) {
@@ -5193,7 +5448,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                 const colName = columns[k];
                                 if (['row_uuid', 'geometry', 'lat', 'lon', 'index', 'orig_uuid', colorCol].includes(colName)) continue;
                                 if (k === displayIDIdx) continue;
-                                hText += `<b>${colName}</b>: ${row[k]}<br>`;
+                                const translatedColName = translateCol(colName);
+                                hText += `<b>${translatedColName}</b>: ${row[k]}<br>`;
                                 count++;
                             }
                         }
@@ -5219,6 +5475,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     lon: lons,
                     mode: "markers",
                     name: lid,
+                    meta: { agcapBaseSize: Number(rawSize) },
                     marker: {
                         size: renderedSize, // <--- Using dynamic size
                         opacity: opacity,
@@ -5246,7 +5503,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             }
 
             // --- 4. Layout ---
-            let center = (map_view && map_view.center) ? map_view.center : {lat: -18.66, lon: 35.52};
+            let center = (map_view && map_view.center) ? map_view.center : {lat: -18.76, lon: 46.86};
             let zoom = (map_view && map_view.zoom) ? map_view.zoom : 5;
             const uirevision_val = forceViewUpdate ? Date.now() : 'constant';
 
@@ -5263,7 +5520,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 showlegend: false,
                 paper_bgcolor: '#44546A',
                 plot_bgcolor: '#44546A',
-                clickmode: 'event+select',
+                clickmode: 'event',  // selection on click is done in assets/agcap_select.js (avoids a second full re-style)
                 uirevision: uirevision_val,
                 dragmode: active_tool || 'pan'
             };
@@ -5292,9 +5549,12 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 });
             }
 
-            return [{data: dataTraces, layout: layout}, finalSelectedUUIDs];
+            const prevSel = current_selection_list || [];
+            const selectionUnchanged = Array.isArray(current_selection_list) && prevSel.length === finalSelectedUUIDs.length
+                && prevSel.every((u, i) => u === finalSelectedUUIDs[i]);
+            return [{data: dataTraces, layout: layout}, selectionUnchanged ? window.dash_clientside.no_update : finalSelectedUUIDs];
         }
-        """.replace('lat: -18.66, lon: 35.52', f"lat: {DEFAULT_MAP_CENTER['lat']}, lon: {DEFAULT_MAP_CENTER['lon']}"),
+        """,
         [Output('map', 'figure'), Output('current-selection-store', 'data')],
         Input('client-layer-data', 'data'),
         Input({'type': 'histogram-slider', 'column': ALL}, 'value'),
@@ -5324,15 +5584,16 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Input({'type': 'layer-outline-opacity', 'index': ALL}, 'id'),
         Input('select-all-btn', 'n_clicks'),
         Input('deselect-all-btn', 'n_clicks'),
-        Input('map', 'selectedData'),
+        Input('map', 'selectedData'), 
         Input('map', 'relayoutData'),
         Input('map-view-store', 'data'),
         Input('visible-layers-list', 'data'),
         Input('basemap-dropdown', 'value'),
-        Input('mapbox-token-input', 'value'),
         Input('table-edits-store', 'data'),
         Input('bubble-clear-trigger', 'data'),
+        Input('filter-na-store', 'data'),
         State('current-selection-store', 'data'),
+        State('column-translations-store', 'data'),
         State('active-tool-store', 'data'),
         State('bubble-clicked-point', 'data')
     )
@@ -5346,37 +5607,45 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Input('user-session-id', 'data')
     )
     def update_composite_layer_dropdown(session_id):
+        """Populate layer dropdown with available layers."""
         if not session_id:
             return [], None
+
         metadata = dm.get_metadata(session_id)
         if not metadata:
             return [], None
+
         options = [{'label': m['name'], 'value': m['id']} for m in metadata]
         default_value = next((m['id'] for m in metadata if m.get('is_primary')), None)
         return options, default_value
 
-    # 2. Populate Column Dropdown
+    # 2. Populate Column Dropdown based on selected layer
     @app.callback(
         Output('composite-columns-dropdown', 'options'),
         Input('composite-layer-dropdown', 'value'),
         State('user-session-id', 'data')
     )
     def update_composite_columns_dropdown(layer_id, session_id):
+        """Populate column dropdown with numeric columns from selected layer."""
         if not session_id or not layer_id:
             return []
+
         metadata = dm.get_metadata(session_id)
         layer_meta = next((m for m in metadata if m['id'] == layer_id), None)
+
         if not layer_meta:
             return []
+
         numeric_cols = layer_meta.get('numeric_columns', [])
         exclude_cols = ['ID', 'row_uuid', 'orig_uuid', 'Notes', 'Score', 'lat', 'lon']
         numeric_cols = [c for c in numeric_cols if c not in exclude_cols]
+
         lang = app.lang
         options = [{'label': get_column_translation(c, lang, COUNTRY_CODE), 'value': c}
                    for c in numeric_cols]
         return options
 
-    # 3. Render Weight Controls
+    # 3. Render Weight Controls (with histograms, sliders, text inputs, negative toggle)
     @app.callback(
         Output('composite-weight-controls-container', 'children'),
         Input('composite-columns-dropdown', 'value'),
@@ -5384,6 +5653,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         State('composite-layer-dropdown', 'value')
     )
     def render_weight_controls(selected_columns, session_id, layer_id):
+        """Generate comprehensive weight controls for each selected column."""
         if not selected_columns or len(selected_columns) < 2:
             return html.Div(t('composite.error_min2', app.lang),
                           style={'fontSize':'10px', 'color':'#e74c3c', 'fontStyle':'italic', 'padding':'10px'})
@@ -5391,11 +5661,15 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         lang = app.lang
         n = len(selected_columns)
         equal_weight = round(100 / n, 2)
+
+        # Get the DataFrame for histograms
         df = dm.get_df(session_id, layer_id) if session_id and layer_id else None
 
         controls = []
         for i, col in enumerate(selected_columns):
             translated_name = get_column_translation(col, lang, COUNTRY_CODE)
+
+            # Build a mini histogram
             histogram = html.Div()
             if df is not None and col in df.columns:
                 col_data = pd.to_numeric(df[col], errors='coerce').dropna()
@@ -5404,7 +5678,8 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     hist_fig.update_layout(
                         height=50, margin=dict(l=0, r=0, t=0, b=0),
                         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                        xaxis=dict(visible=False), yaxis=dict(visible=False), bargap=0.05
+                        xaxis=dict(visible=False), yaxis=dict(visible=False),
+                        bargap=0.05
                     )
                     histogram = dcc.Graph(figure=hist_fig, config={'displayModeBar': False},
                                           style={'height':'50px', 'marginBottom':'2px'})
@@ -5412,6 +5687,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             controls.append(
                 html.Div([
                     histogram,
+                    # Top row: Name + Negative toggle + Weight input
                     html.Div([
                         html.Label(translated_name, style={'fontSize':'10px', 'color':'#ecf0f1', 'fontWeight':'bold', 'flex':'1'}),
                         html.Div([
@@ -5420,30 +5696,45 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                                 id={'type': 'weight-negative', 'index': i},
                                 n_clicks=0,
                                 title=t('composite.negative_effect', app.lang),
-                                style={'padding':'2px 5px', 'fontSize':'10px', 'marginRight':'4px',
-                                       'backgroundColor':'#555', 'color':'#ecf0f1', 'border':'none',
-                                       'borderRadius':'3px', 'cursor':'pointer'}
+                                style={
+                                    'padding':'2px 5px', 'fontSize':'10px', 'marginRight':'4px',
+                                    'backgroundColor':'#555', 'color':'#ecf0f1', 'border':'none',
+                                    'borderRadius':'3px', 'cursor':'pointer'
+                                }
                             ),
                             dcc.Input(
                                 id={'type': 'weight-input', 'index': i},
-                                type='number', value=equal_weight, min=0, max=100, step=0.01,
+                                type='number',
+                                value=equal_weight,
+                                min=0,
+                                max=100,
+                                step=0.01,
                                 style={'width':'65px', 'fontSize':'10px', 'padding':'2px 4px', 'textAlign':'center',
                                        'backgroundColor':'#333', 'color':'#ecf0f1', 'border':'1px solid #555', 'borderRadius':'3px'}
                             ),
                             html.Span("%", style={'fontSize':'10px', 'color':'#bbb', 'marginLeft':'2px'})
                         ], style={'display':'flex', 'alignItems':'center'})
                     ], style={'display':'flex', 'justifyContent':'space-between', 'alignItems':'center', 'marginBottom':'2px'}),
+
+                    # Slider
                     dcc.Slider(
                         id={'type': 'weight-slider', 'index': i},
-                        min=0, max=100, step=0.01, value=equal_weight,
-                        marks=None, tooltip={"placement": "bottom", "always_visible": False}
+                        min=0,
+                        max=100,
+                        step=0.01,
+                        value=equal_weight,
+                        marks=None,
+                        tooltip={"placement": "bottom", "always_visible": False}
                     ),
+
+                    # Hidden store for column name
                     dcc.Store(id={'type': 'weight-column-name', 'index': i}, data=col)
                 ], style={'marginBottom':'8px', 'padding':'6px', 'backgroundColor':'#2a2a2a', 'borderRadius':'4px', 'border':'1px solid #444'})
             )
+
         return controls
 
-    # 3b. Clientside: Sync slider <-> text input
+    # 3b. Clientside: Sync slider <-> text input (bidirectional)
     app.clientside_callback(
         """
         function(slider_values, input_values) {
@@ -5451,14 +5742,17 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             if (!ctx.triggered || !ctx.triggered.length) {
                 return [slider_values, input_values];
             }
+
             const triggered = ctx.triggered[0].prop_id;
             const n = slider_values ? slider_values.length : 0;
             if (n === 0) return [[], []];
+
             if (triggered.includes('weight-slider')) {
                 return [window.dash_clientside.no_update, slider_values.map(v => Math.round(v * 100) / 100)];
             } else if (triggered.includes('weight-input')) {
                 return [input_values.map(v => parseFloat(v) || 0), window.dash_clientside.no_update];
             }
+
             return [slider_values, input_values];
         }
         """,
@@ -5480,12 +5774,15 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     'fontFamily':'Barlow Condensed', 'letterSpacing':'1px'
                 }];
             }
+
             var sum = slider_values.reduce(function(a, b) { return a + b; }, 0);
             var is_valid = (Math.abs(sum - 100) < 0.1);
+
             var sum_text = sum.toFixed(2) + '%';
             var sum_style = is_valid
                 ? {'color': '#2ecc71', 'fontSize':'11px', 'fontWeight':'bold'}
                 : {'color': '#e74c3c', 'fontSize':'11px', 'fontWeight':'bold'};
+
             var btn_style = is_valid ? {
                 'flex':'2', 'padding':'8px', 'backgroundColor':'#FBB800',
                 'color':'#333', 'border':'none', 'borderRadius':'4px',
@@ -5497,6 +5794,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 'cursor':'not-allowed', 'fontWeight':'bold', 'fontSize':'11px',
                 'fontFamily':'Barlow Condensed', 'letterSpacing':'1px'
             };
+
             return [sum_text, sum_style, btn_style];
         }
         """,
@@ -5506,11 +5804,13 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Input({'type': 'weight-slider', 'index': ALL}, 'value')
     )
 
-    # 3d. Clientside: Negative effect button toggle
+    # 3d. Clientside: Negative effect button toggle style
     app.clientside_callback(
         """
         function(click_counts) {
-            if (!click_counts || click_counts.length === 0) return [];
+            if (!click_counts || click_counts.length === 0) {
+                return [];
+            }
             return click_counts.map(function(n) {
                 var is_negative = (n % 2 === 1);
                 return {
@@ -5535,8 +5835,10 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
     def reset_weights(n_clicks, selected_columns):
+        """Reset all weights to equal distribution and clear negatives."""
         if not n_clicks or not selected_columns:
             return dash.no_update, dash.no_update
+
         n = len(selected_columns)
         equal_weight = round(100 / n, 2)
         return [equal_weight] * n, [0] * n
@@ -5548,42 +5850,59 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         Input('layer-manager-trigger', 'data')
     )
     def render_composite_manager(session_id, trigger):
+        """Display all saved composite indices in a management table."""
         if not session_id:
             return html.Div("No composite indices created yet.",
                           style={'fontSize':'10px', 'color':'#bbb', 'fontStyle':'italic', 'padding':'10px'})
+
         indices = dm.get_composite_indices(session_id) if hasattr(dm, 'get_composite_indices') else {}
         if not indices:
             return html.Div("No composite indices created yet.",
                           style={'fontSize':'10px', 'color':'#bbb', 'fontStyle':'italic', 'padding':'10px'})
+
         lang = app.lang
         rows = []
         for idx_name, idx_info in indices.items():
+            # Build formula text from components
             components = idx_info.get('components', [])
             formula_parts = []
             for comp in components:
                 sign = "-" if comp.get('negative', False) else "+"
                 col_translated = get_column_translation(comp['column'], lang, COUNTRY_CODE)
                 formula_parts.append(f"{sign} {col_translated}: {comp.get('original_weight', 0):.1f}%")
+
             formula_text = "\n".join(formula_parts) if formula_parts else "N/A"
             formula_preview = formula_parts[0] if formula_parts else ""
+
             safe_id = idx_name.replace(' ', '-').replace("'", "")
+
             rows.append(
                 html.Div([
                     html.Div([
                         html.B(idx_name, style={'fontSize':'11px', 'color':'#FBB800'}),
                         dbc.Tooltip(formula_text, target=f"idx-name-{safe_id}", placement="right")
                     ], id=f"idx-name-{safe_id}", style={'flex':'2', 'padding':'5px'}),
-                    html.Div(formula_preview,
-                        style={'flex':'3', 'fontSize':'9px', 'color':'#ecf0f1', 'padding':'5px', 'fontFamily':'monospace'}),
+
+                    html.Div(
+                        formula_preview,
+                        style={'flex':'3', 'fontSize':'9px', 'color':'#ecf0f1', 'padding':'5px', 'fontFamily':'monospace'}
+                    ),
+
                     html.Div([
-                        html.Button(html.I(className="fas fa-trash"),
-                            id={'type': 'delete-index-btn', 'index': idx_name}, n_clicks=0, title="Delete",
+                        html.Button(
+                            html.I(className="fas fa-trash"),
+                            id={'type': 'delete-index-btn', 'index': idx_name},
+                            n_clicks=0,
+                            title="Delete",
                             style={'padding':'3px 6px', 'fontSize':'10px', 'backgroundColor':'#e74c3c',
-                                   'color':'white', 'border':'none', 'borderRadius':'3px', 'cursor':'pointer'})
+                                   'color':'white', 'border':'none', 'borderRadius':'3px', 'cursor':'pointer'}
+                        )
                     ], style={'flex':'1', 'padding':'5px', 'textAlign':'right'})
+
                 ], style={'display':'flex', 'alignItems':'center', 'backgroundColor':'#333',
                          'marginBottom':'5px', 'borderRadius':'4px', 'border':'1px solid #555'})
             )
+
         return rows
 
     # 4b. Delete Composite Index
@@ -5596,12 +5915,16 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
         prevent_initial_call=True
     )
     def delete_composite_index(n_clicks_list, button_ids, session_id):
+        """Delete a composite index column."""
         ctx = callback_context
         if not ctx.triggered or not session_id:
             return dash.no_update, dash.no_update
+
         triggered_id = ctx.triggered[0]['prop_id']
         if 'delete-index-btn' not in triggered_id:
             return dash.no_update, dash.no_update
+
+        # Find which button was actually clicked (non-zero n_clicks)
         for nc, bid in zip(n_clicks_list, button_ids):
             if nc and nc > 0:
                 idx_name = bid['index']
@@ -5609,9 +5932,10 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                     dm.delete_composite_index(session_id, idx_name)
                 trigger = str(uuid.uuid4())
                 return trigger, trigger
+
         return dash.no_update, dash.no_update
 
-    # 5. Calculate Composite Index
+    # 5. Calculate Composite Index (with negative effects + auto color-by)
     @app.callback(
         Output('composite-status-message', 'children'),
         Output('composite-status-message', 'style'),
@@ -5630,6 +5954,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
     )
     def run_composite_calculation(n_clicks, column_name, layer_id, selected_columns,
                                   weights_list, negative_clicks, column_names, method, session_id):
+        """Execute composite index calculation with negative effects."""
         err_style = {'fontSize':'10px', 'padding':'8px', 'borderRadius':'4px',
                      'backgroundColor':'rgba(231,76,60,0.2)', 'color':'#e74c3c', 'display':'block'}
         ok_style = {'fontSize':'10px', 'padding':'8px', 'borderRadius':'4px',
@@ -5638,49 +5963,64 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
         if not n_clicks or not session_id:
             return "", hide, dash.no_update, dash.no_update
+
         if not column_name or not column_name.strip():
             return "Please enter a name for the new column.", err_style, dash.no_update, dash.no_update
+
         if not layer_id:
             return "Please select a target layer.", err_style, dash.no_update, dash.no_update
+
         if not selected_columns or len(selected_columns) < 2:
             return "Please select at least 2 columns.", err_style, dash.no_update, dash.no_update
+
         if not weights_list or not column_names:
             return "Weight configuration error.", err_style, dash.no_update, dash.no_update
 
+        # Validate sum
         total = sum(weights_list)
         if abs(total - 100) > 0.5:
             return f"Weights must sum to 100% (current: {total:.2f}%).", err_style, dash.no_update, dash.no_update
 
+        # Check if column already exists
         df = dm.get_df(session_id, layer_id)
         if df is not None and column_name in df.columns:
             return f"Column '{column_name}' already exists. Choose a different name.", err_style, dash.no_update, dash.no_update
 
+        # Build weights and negative effects dictionaries
         weights = {col_name: weight for col_name, weight in zip(column_names, weights_list)}
         negative_effects = {col_name: (clicks % 2 == 1 if clicks else False)
                            for col_name, clicks in zip(column_names, negative_clicks or [])}
 
         try:
             success = dm.create_composite_index(
-                session_id=session_id, layer_id=layer_id, column_name=column_name,
-                selected_columns=selected_columns, weights=weights,
-                method=method, negative_effects=negative_effects
+                session_id=session_id,
+                layer_id=layer_id,
+                column_name=column_name,
+                selected_columns=selected_columns,
+                weights=weights,
+                method=method,
+                negative_effects=negative_effects
             )
         except Exception as e:
             print(f"[Composite] ERROR creating index: {e}")
             return f"Error: {str(e)}", err_style, dash.no_update, dash.no_update
 
         if success:
+            # Store composite index metadata for the manager table
             if hasattr(dm, 'get_user_data'):
                 user_data = dm.get_user_data(session_id)
                 components = []
                 for col_name, weight in zip(column_names, weights_list):
                     components.append({
-                        'column': col_name, 'weight': weight / 100.0,
+                        'column': col_name,
+                        'weight': weight / 100.0,
                         'negative': negative_effects.get(col_name, False),
                         'original_weight': weight
                     })
                 user_data.setdefault('composite_indices', {})[column_name] = {
-                    'layer_id': layer_id, 'components': components, 'method': method
+                    'layer_id': layer_id,
+                    'components': components,
+                    'method': method
                 }
 
             # Auto-set map color to new composite index
@@ -5697,41 +6037,100 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
 
     return app
 
-# --- FACTORY FUNCTION (used by wsgi_protected_auth.py for web deployment) ---
+
+def load_latest_dataset():
+    """Newest analysis output (.gpkg) in DATA_FOLDER, as exported by core_analysis_engine.ipynb."""
+    import glob
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    folder = os.path.join(project_root, DATA_FOLDER)
+    candidates = sorted(glob.glob(os.path.join(folder, '*.gpkg')), key=os.path.getmtime, reverse=True)
+    if not candidates:
+        raise RuntimeError(f"No .gpkg file found in {folder}")
+    print(f"Loading dataset: {os.path.relpath(candidates[0], project_root)}")
+    return normalize_legacy_columns(gpd.read_file(candidates[0]))
+
+
 def create_app(lang='en', url_base_pathname=None):
     """
-    Load data and create the AgCAP app for a specific language.
+    Load the latest analyzed dataset and create the AgCAP app for one language.
     Used by the WSGI dispatcher for web deployment.
 
     Args:
-        lang: Language code ('en' or 'fr')
+        lang: Language code (one of LANGUAGES)
         url_base_pathname: Dash requests_pathname_prefix (e.g. '/mdg/en/').
-                           Defaults to f'/{COUNTRY_CODE.lower()}/{lang}/' if not provided.
+                           Defaults to f'/mdg/{lang}/' if not provided.
 
     Returns:
         Flask server instance
     """
     if url_base_pathname is None:
-        url_base_pathname = f'/{COUNTRY_CODE.lower()}/{lang}/'
-
-    import glob
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(current_dir)
-    folder = os.path.join(project_root, DATA_FOLDER)
-    candidates = sorted(glob.glob(os.path.join(folder, '*.gpkg')), key=os.path.getmtime, reverse=True)
-    if not candidates:
-        raise RuntimeError(f"No .gpkg file found in {folder}")
-    data_path = candidates[0]
-    print(f"[create_app] Loading dataset: {os.path.relpath(data_path, project_root)}")
-
-    gdf = gpd.read_file(data_path)
-    app = agcap_explorer(gdf, default_column=DEFAULT_COLUMN,
+        url_base_pathname = f'/mdg/{lang}/'
+    app = agcap_explorer(load_latest_dataset(), default_column=DEFAULT_COLUMN,
                          figure_title=FIGURE_TITLE, lang=lang,
                          url_base_pathname=url_base_pathname)
     return app.server
 
 
-if __name__ == '__main__':
+def select_language():
+    """Ask in the terminal which language to open first (the language can also be switched in the platform)."""
+    if len(LANGUAGES) == 1:
+        return LANGUAGES[0]
+    print('\n Select language:')
+    for i, code in enumerate(LANGUAGES, 1):
+        print(f'   {i}) {LANGUAGE_NAMES.get(code, code)}')
+    while True:
+        raw = input('\n Your choice (press Enter for English): ').strip()
+        if not raw:
+            return 'en'
+        if raw.isdigit() and 1 <= int(raw) <= len(LANGUAGES):
+            return LANGUAGES[int(raw) - 1]
+        print(f' Please enter a number from 1 to {len(LANGUAGES)}.')
+
+
+def run_platform(settles_gdf=None, port=None, lang='en', default_column=DEFAULT_COLUMN,
+                 figure_title=FIGURE_TITLE, open_browser=True):
+    """
+    Run the platform on this computer with all its languages side by side (/en/, /fr/, ...),
+    so the language button inside the platform switches between them.
+
+    Args:
+        settles_gdf: analysis results (GeoDataFrame); default: newest .gpkg in DATA_FOLDER
+        port: local port, the platform opens at http://127.0.0.1:<port>/ (default: first free port from 8050)
+        lang: language shown first
+        open_browser: open the platform in the web browser
+
+    In Jupyter the server runs in the background; in a script it runs until Ctrl+C.
+    """
+    import socket
+    import threading
+    import webbrowser
+    from flask import Flask, redirect
+    from werkzeug.middleware.dispatcher import DispatcherMiddleware
     from werkzeug.serving import run_simple
-    server = create_app('en', url_base_pathname='/')
-    run_simple('localhost', 8050, server, use_reloader=True, use_debugger=True)
+
+    if port is None:
+        port = 8050
+        while socket.socket().connect_ex(('127.0.0.1', port)) == 0:  # port in use
+            port += 1
+    gdf = load_latest_dataset() if settles_gdf is None else normalize_legacy_columns(settles_gdf)
+    lang = lang if lang in LANGUAGES else LANGUAGES[0]
+    apps = {f'/{code}': agcap_explorer(gdf, default_column=default_column, figure_title=figure_title,
+                                       lang=code, url_base_pathname=f'/{code}/').server
+            for code in LANGUAGES}
+    root = Flask(__name__)
+    root.add_url_rule('/', 'index', lambda: redirect(f'/{lang}/'))
+    application = DispatcherMiddleware(root, apps)
+
+    url = f'http://127.0.0.1:{port}/{lang}/'
+    print(f"\n AgCAP platform running at {url} (Press CTRL+C to quit)\n")
+    if open_browser:
+        threading.Timer(1.5, webbrowser.open_new, [url]).start()
+    if 'ipykernel' in sys.modules:
+        threading.Thread(target=run_simple, args=('127.0.0.1', port, application),
+                         kwargs={'threaded': True}, daemon=True).start()
+    else:
+        run_simple('127.0.0.1', port, application, threaded=True)
+
+
+if __name__ == '__main__':
+    run_platform(lang=select_language())

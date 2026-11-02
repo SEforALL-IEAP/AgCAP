@@ -58,11 +58,11 @@ You need the following installed:
 ![Platform](assets/images/platform.png)
 
 - If you want to use the pre-compiled results:
-    1. Navigate to the `visualization_platform` directory
-    2. Right-click -> Open in Terminal
-    3. Run the command ```conda activate agcapenv``` to activate the environment
-    4. Run the command ```python visual_app_launcher.py``` to run the app
-    5. When a prompt opens up, select the pre-compiled settlement data, which by default should be `data/processed/settles_gdf_MDG_analyzed.gpkg`
+    1. Open a Terminal in the project root (the `AgCAP` folder)
+    2. Run the command ```conda activate agcapenv``` to activate the environment
+    3. Run the command ```python visual_app_launcher.py``` to run the app
+    4. When a prompt opens up, select the analyzed settlement data, located by default in `data/processed/input_analyzed/` (`settlements_analyzed_*.gpkg`)
+    5. Choose the language shown first (English or French); it can also be switched inside the platform
 
 - It is also possible to launch the platform from within the notebook`visual_app_launcher.ipynb`. This gives you the possibility to perform some data analysis, calculate custom composite indices, etc. before performing the multi-criteria site selection within the platform. 
 
@@ -133,7 +133,7 @@ The settlements data dictionary can be found here:
 ### 4) Running the <span style="color:#007bff; font-weight:bold;">AgCAP Explorer</span> interactive platform
 - Although the visualization platform can be launched from within the last section of the [Core Analysis Notebook](notebooks/core_analysis_engine.ipynb), it is also possible to launch the platform without running the previous notebooks, in two ways:
     - A) Open the [Visual App Launcher Notebook](notebooks/visual_app_launcher.ipynb) notebook and run all cells to perform the data analysis and generate output plots, OR:
-    - B) Run the [Visual App Launcher](visualization_platform/visual_app_launcher.py) directly from Terminal. Navigate to the `visualization_platform` directory, open the Terminal and run:
+    - B) *RECOMMENDED* - Run the [Visual App Launcher](visual_app_launcher.py) directly from Terminal. From the project root, run:
         ```bash
         python visual_app_launcher.py
         ```

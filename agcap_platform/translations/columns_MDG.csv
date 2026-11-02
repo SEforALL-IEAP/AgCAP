@@ -15,9 +15,9 @@ Electrification status nightlights,Statut d'électrification (lumières nocturne
 Electrification status (IEP study),Statut d'électrification (étude IEP),Estado de eletrificação (estudo IEP)
 Least-cost electrification mode (IEP results),Mode d'électrification au moindre coût (résultats IEP),Modo de eletrificação de menor custo (resultados IEP)
 Relative Wealth Index,Indice de richesse relative,Índice de Riqueza Relativa
-Percentage of food-insecure people,Pourcentage de personnes en insécurité alimentaire,Percentagem de pessoas em insegurança alimentar
+Fraction of food-insecure people,Fraction de personnes en insécurité alimentaire,Fração de pessoas em insegurança alimentar
 Livelihoods,Moyens de subsistance,Meios de subsistência
-Conflict fatalities nearby,Victimes de conflits à proximité,Vítimas de conflitos próximas
+Conflict fatalities nearby (last year),Victimes de conflits à proximité (dernière année),Vítimas de conflitos próximas (último ano)
 Cyclone hazard (1 in 100 years wind speed),Risque de cyclone (vitesse du vent 1 sur 100 ans),Risco de ciclone (velocidade do vento 1 em 100 anos)
 Elevation,Altitude,Elevação
 Mean temperature,Température moyenne,Temperatura média
@@ -56,12 +56,14 @@ Potato production,Production de Pomme de Terre,Produção de Batata
 Sweet Potato production,Production de Patate Douce,Produção de Batata-doce
 Temperate Fruit production,Production de Fruits Tempérés,Produção de Frutas Temperadas
 Tomato production,Production de Tomate,Produção de Tomate
+Fishing Activity (Highest type),Activité de pêche (Type prédominant),Atividade de pesca (Tipo predominante)
 Fishing Activity (Marine),Activité de pêche (Marine),Atividade de pesca (Marinha)
 Fishing Activity (Inland),Activité de pêche (Continentale),Atividade de pesca (Continental)
-Fishing Activity (Highest type),Activité de pêche (Type prédominant),Atividade de pesca (Tipo predominante)
 Fishing type,Type de pêche,Tipo de pesca
 Fish Cooling Potential Export Market,Potentiel Refroid. Pêche Marché Export,Potencial Refrigeração Pesca Mercado Exportação
 Fish Cooling Potential National Market,Potentiel Refroid. Pêche Marché National,Potencial Refrigeração Pesca Mercado Nacional
 Fish Cooling Potential Fresh Markets,Potentiel Refroid. Pêche Marchés Frais,Potencial Refrigeração Pesca Mercados Frescos
 Fish Cooling Potential ALL Markets,Potentiel Refroid. Pêche TOUS Marchés,Potencial Refrigeração Pesca TODOS Mercados
 geometry,geometry,geometry
+Percentage of food-insecure people,Pourcentage de personnes en insécurité alimentaire,Percentagem de pessoas em insegurança alimentar
+Conflict fatalities nearby,Victimes de conflits à proximité,Vítimas de conflitos próximas
