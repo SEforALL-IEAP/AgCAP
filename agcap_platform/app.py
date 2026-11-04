@@ -475,8 +475,8 @@ class DataManager:
             # Apply weight and add to composite
             composite += normalized * normalized_weights[col]
 
-        # Scale final result to 0-100 for readability
-        df[column_name] = (composite * 100).round(2)
+        # Final score in 0-1 range
+        df[column_name] = composite.round(4)
 
         # Update metadata to include the new column
         meta = next((m for m in user_data['metadata'] if m['id'] == layer_id), None)
@@ -1597,14 +1597,18 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
             html.Div([
                 html.H3(t('info.title', lang), style={'color': '#FBB800', 'marginBottom': '15px', 'fontSize': '18px'}),
                 html.P(t('info.description', lang), style={'color': '#ecf0f1', 'fontSize': '13px', 'lineHeight': '1.6', 'marginBottom': '20px'}),
-                html.A(
-                    html.Div([
-                        html.I(className="fas fa-code-branch", style={'marginRight': '10px'}),
-                        html.Span(t('info.model_source', lang))
-                    ], style={'padding': '10px 20px', 'backgroundColor': '#583CA5', 'borderRadius': '5px', 'display': 'inline-flex', 'alignItems': 'center'}),
-                    href='https://github.com/SEforALL-IEAP/AgCAP', target='_blank',
-                    style={'textDecoration': 'none', 'color': '#ecf0f1', 'display': 'block', 'marginBottom': '20px'}
-                ),
+                html.Div([
+                    html.A(
+                        html.Div([
+                            html.I(className=icon, style={'marginRight': '10px'}),
+                            html.Span(t(key, lang))
+                        ], style={'padding': '10px 20px', 'backgroundColor': '#583CA5', 'borderRadius': '5px', 'display': 'inline-flex', 'alignItems': 'center'}),
+                        href=href, target='_blank',
+                        style={'textDecoration': 'none', 'color': '#ecf0f1'}
+                    )
+                    for key, icon, href in [('info.model_source', 'fas fa-code-branch', 'https://github.com/SEforALL-IEAP/AgCAP'),
+                                            ('info.methodology', 'fas fa-book', 'https://www.seforall.org/news/agriculture-cold-chain-analysis-and-prioritization-agcap-integrated-planning-for-increased')]
+                ], style={'display': 'flex', 'gap': '10px', 'flexWrap': 'wrap', 'marginBottom': '20px'}),
                 # Downloadable settlement datasets (GitHub release data-<CC> of the public AgCAP repo,
                 # published with tools/publish_datasets.py; links always point to the latest files)
                 html.Div([
@@ -5872,7 +5876,7 @@ def agcap_explorer(settles_gdf, default_column, figure_title, lang='en', url_bas
                 formula_parts.append(f"{sign} {col_translated}: {comp.get('original_weight', 0):.1f}%")
 
             formula_text = "\n".join(formula_parts) if formula_parts else "N/A"
-            formula_preview = formula_parts[0] if formula_parts else ""
+            formula_preview = [html.Div(part) for part in formula_parts]
 
             safe_id = idx_name.replace(' ', '-').replace("'", "")
 
