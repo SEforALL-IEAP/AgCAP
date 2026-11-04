@@ -131,6 +131,7 @@ sidebar.back,Back to Countries,Retour aux Pays,Voltar aos Países
 info.title,About AgCAP Insights Platform,À Propos de la Plateforme AgCAP Insights,Sobre a Plataforma AgCAP Insights
 info.description,"The Agricultural Cold Chain Analysis & Prioritization (AgCAP) tool helps identify settlements where cold chain investments can have the greatest impact on food security and economic development.","L'outil d'Analyse et de Priorisation de la Chaîne du Froid Agricole (AgCAP) aide à identifier les établissements où les investissements dans la chaîne du froid peuvent avoir le plus grand impact sur la sécurité alimentaire et le développement économique.","A ferramenta de Análise e Priorização da Cadeia de Frio Agrícola (AgCAP) ajuda a identificar assentamentos onde investimentos em cadeia de frio podem ter o maior impacto na segurança alimentar e no desenvolvimento econômico."
 info.model_source,AgCAP Model Source Code,Code Source du Modèle AgCAP,Código Fonte do Modelo AgCAP
+info.methodology,Methodology,Méthodologie,Metodologia
 info.download_title,Download settlement data,Télécharger les données des établissements,Descarregar dados dos assentamentos
 info.download_polygons,Polygons (GeoPackage),Polygones (GeoPackage),Polígonos (GeoPackage)
 info.download_points,Points (GeoPackage),Points (GeoPackage),Pontos (GeoPackage)
@@ -154,7 +155,7 @@ composite.attributes,Attributes to Combine,Attributs à Combiner,Atributos a Com
 composite.method,Standardization Method,Méthode de Standardisation,Método de Padronização
 composite.minmax, Min-Max (0-1 Range), Min-Max (Plage 0-1), Min-Max (Intervalo 0-1)
 composite.zscore, Z-Score (Standardized), Z-Score (Standardisé), Z-Score (Padronizado)
-composite.reset,Reset,Réinitialiser,Redefinir
+composite.reset,Reset Weights,Réinitialiser les Poids,Redefinir Pesos
 composite.calculate,Calculate Index,Calculer l'Indice,Calcular Índice
 composite.sum_label,Sum: ,Somme: ,Soma:
 composite.help_manager,View and manage your created composite indices. Hover over names to see their formula.,"Consultez et gérez vos indices composites créés. Survolez les noms pour voir leur formule.","Veja e gerencie seus índices compostos criados. Passe o mouse sobre os nomes para ver a fórmula."
